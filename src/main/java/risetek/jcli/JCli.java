@@ -7,9 +7,11 @@ import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Set;
 import java.util.Timer;
 import java.util.TimerTask;
+import java.util.Vector;
 
 public class JCli implements Runnable {
 	SocketChannel _socket;
@@ -940,9 +942,124 @@ public class JCli implements Runnable {
 		return (byte) ((byte)c-'@');
 	}
 	
+	private class hide_command {
+	}
+	
+	private boolean isspace(byte c) {
+		return c == ' ';
+	}
+
+	String[] cli_parse_line(byte[] line)
+	{
+		List<String> words = new Vector<>();
+		int index = 0;
+		
+//	    int nwords = 0;
+//	    char *p = line;
+	    int word_start = -1;
+	    byte inquote = 0;
+
+	    while (cmd[index] != 0)
+	    {
+	        if (!isspace(cmd[index]))
+	        {
+	            word_start = index;
+	            break;
+	        }
+	        index++;
+	    }
+
+	    // while (nwords < max_words - 1)
+	    while(true)
+	    {
+	        if ((cmd[index] == 0) || cmd[index] == inquote || (word_start!=-1 && (inquote==0) && (isspace(cmd[index]) || cmd[index] == '|')))
+	        {
+	            if (cmd[word_start] != 0)
+	            {
+	                // int len = index - word_start;
+	                String word = new String(cmd, word_start, (index-word_start));
+	                words.add(word);
+	                //memcpy(words[nwords] = malloc(len + 1), word_start, len);
+	                //words[nwords++][len] = 0;
+	            }
+
+	            if (cmd[index] == 0)
+	                break;
+
+	            if (inquote > 0)
+	                index++; /* skip over trailing quote */
+
+	            inquote = 0;
+	            word_start = -1;
+	        }
+	        else if (cmd[index] == '"' || cmd[index] == '\'')
+	        {
+	            inquote = cmd[index]; index++; //*p++;
+	            word_start = index;
+	        }
+	        else
+	        {
+	            if (word_start == -1)
+	            {
+	                if (cmd[index] == '|')
+	                {
+	                    //if (!(words[nwords++] = strdup("|")))   return 0;
+	                	words.add("|");
+	                }
+	                else if (!isspace(cmd[index]))
+	                    word_start = index;
+	            }
+
+	            index++;
+	        }
+	    }
+
+	    //return nwords;
+	    return words.toArray(new String[0]);
+	}	
 	private cliState cli_run_command(byte cmd[]) {
 		System.out.println("Run cmd: " + new String(cmd));
-		return cliState.CLI_OK;
+		cliState r = cliState.CLI_OK;
+		
+		String[] words = cli_parse_line(cmd);
+/*		
+		    int num_words, i, f;
+		    // 由于要push命令到这里面，所以我们要扩大这个空间。
+		    char *words[128 * 2] = {0};
+		    // int filters[128] = {0};
+		    hide_command	auto_hide_commands = null;
+		    int index = 0;
+		    while(cmd[index] == ' ')
+		    	index++;
+		    
+		    if (cmd[index] == 0) return cliState.CLI_OK;
+		    // 最大只能占用一半
+		    num_words = cli_parse_line(command, words, sizeof(words) / sizeof(words[0]) / 2);
+		    
+*/		    
+		    
+		    /*
+		    for (i = f = 0; i < num_words && f < sizeof(filters) / sizeof(filters[0]) - 1; i++)
+		    {
+		        if (words[i][0] == '|')
+		        filters[f++] = i;
+		    }
+
+		    filters[f] = 0;
+*/
+		
+/*		
+		    if (num_words)
+				r = cli_find_command(cli, cli->mode, cli->common->commands, NULL, num_words, words, 0, filters, 0, &auto_hide_commands);
+		    else
+		        r = cliState.CLI_ERROR;
+
+		    for (i = 0; i < num_words; i++)
+		        free(words[i]);
+
+		    // free_linked_hide_commands(&auto_hide_commands);
+*/
+		    return r;
 	}
 	
 	private void cli_add_history(byte cmd[]) {
