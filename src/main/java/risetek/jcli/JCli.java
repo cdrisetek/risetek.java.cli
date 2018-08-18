@@ -5,6 +5,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Set;
 import java.util.Timer;
@@ -22,20 +23,22 @@ public class JCli implements Runnable {
 	private boolean schedule() throws IOException {
 		write(negotiate);
 		Selector sel = Selector.open();
-/*
+		// RUN first onces
+
 		Timer timer = new Timer();
 		timer.scheduleAtFixedRate(new TimerTask() {
 
 			@Override
 			public void run() {
 				try {
+					System.out.println("timer");
 					loop(selectReason.TIMER);
 				} catch (IOException e) {
 					e.printStackTrace();
 				}
 			}
 		}, 0, 1000);
-*/
+
 		SelectionKey selectKey = _socket.register(sel, SelectionKey.OP_READ);
 		// ByteBuffer buf = ByteBuffer.allocate(128);
 		boolean quit = false;
@@ -54,7 +57,7 @@ public class JCli implements Runnable {
 			}
 		}
 
-//		timer.cancel();
+		timer.cancel();
 		sel.close();
 		return false;
 	}
@@ -93,7 +96,7 @@ public class JCli implements Runnable {
 	}
 
 	private void initcli() {
-		// ×´Ì¬³õÊ¼»¯
+		// ×´Ì¬ï¿½ï¿½Ê¼ï¿½ï¿½
 		/*
 		oldl = 0;
 		cli_state->is_telnet_option = 0;
@@ -124,12 +127,12 @@ public class JCli implements Runnable {
 	enum cliState {CLI_OK, CLI_QUIT, CLI_ERROR}
 	enum State { STATE_LOGIN, STATE_PASSWORD, STATE_NORMAL, STATE_ENABLE_PASSWORD, STATE_ENABLE }
 	enum cliMode {MODE_EXEC}
-	private int flags;
+	private int flags = 0;
 	private boolean showprompt = false;
 	private byte oldcmd[] = null;
 	private byte cmd[] = new byte[COMMAND_BUFFER_SIZE];
 	private int oldl = 0;
-	private int l;
+	private int location = 0;
 	private int cursor = 0;
 	private confirmcallback cli_confirm_callback = null;
 	private confirmcontext cli_confirm_context = null;
@@ -137,9 +140,9 @@ public class JCli implements Runnable {
 	private long idle_timeout = 0;
 	private long last_action = 0;
 	private int skip = 0;
-	private char is_telnet_option = '\0';
-	private char esc;
-	private char lastchar;
+	private byte is_telnet_option = 0;
+	private byte esc;
+	private byte lastchar;
 	private int in_history;
 	private static int MAX_HISTORY = 100;
 	private static int COMMAND_BUFFER_SIZE = 1024;
@@ -147,14 +150,23 @@ public class JCli implements Runnable {
 	private cliMode mode;
 	private boolean insertmode = false;
 	private String username = null;
+	private String password = null;
 	private synchronized cliState loop(selectReason reason) throws IOException {
-
-//		struct cli_state *cli_state = (struct cli_state *)argv;
-//		struct cli_def *cli = cli_state->cli;
-	    char c = 0;
+	    byte c = 0;
 	    int onces = 0;
 
-
+	    if(buflen == -1 && selectReason.READ == reason) {
+			buf = ByteBuffer.allocate(1024);
+			buflen = _socket.read(buf);
+			if(buflen > 0)
+				buf.flip();
+			else {
+				buflen = -1;
+				return cliState.CLI_OK;
+			}
+		}
+	    
+	    
 	    while(true) {
 
 	    while(true) {
@@ -167,16 +179,17 @@ public class JCli implements Runnable {
 
 	    			if (null != oldcmd)
 	    			{
-	    				l = cursor = oldl;
-	    				oldcmd[l] = 0;
+	    				location = cursor = oldl;
+	    				oldcmd[location] = 0;
 	    				showprompt = true;
 	    				oldcmd = null;
 	    				oldl = 0;
 	    			}
 	    			else
 	    			{
+	    				Arrays.fill(cmd, (byte)0);
 	    				// memset(cli_state->cmd, 0, COMMAND_BUFFER_SIZE);
-	    				l = 0;
+	    				location = 0;
 	    				cursor = 0;
 	    			}
 	    		}
@@ -199,10 +212,10 @@ public class JCli implements Runnable {
 	    	            case STATE_NORMAL:
 	    	            case STATE_ENABLE:
 	    	                show_prompt();
-	    	                write(cmd, 0, l);
-	    	                if (cursor < l)
+	    	                write(cmd, 0, location);
+	    	                if (cursor < location)
 	    	                {
-	    	                    int n = l - cursor;
+	    	                    int n = location - cursor;
 	    	                    while (n-- > 0)
 	    	                        write("\b");
 	    	                }
@@ -216,9 +229,7 @@ public class JCli implements Runnable {
 
 	    		showprompt = false;
 			}
-buflen = 0;
-buf.flip();
-	    		return cliState.CLI_OK;
+//	    		return cliState.CLI_OK;
 	    	}
 
 	    	if (reason == selectReason.TIMER )
@@ -231,7 +242,7 @@ buf.flip();
 					break;
 				}
 */
-				// ³¬Ê±Çé¿öÏÂ£¬ÖÕÖ¹Õâ¸ö»á»°
+				// ï¿½ï¿½Ê±ï¿½ï¿½ï¿½ï¿½Â£ï¿½ï¿½ï¿½Ö¹ï¿½ï¿½ï¿½ï¿½á»°
 	    		/*
 				if(
 				(0 != idle_timeout)
@@ -244,41 +255,24 @@ buf.flip();
 					break;
 				}
 				*/
-				continue;
+	    		return cliState.CLI_OK;
 	    	}
 
-	    	int rd = cli_read();
-	    	if(rd == -1)
-	    		n = rd;
-	    	else if(rd == -2)
+	    	if(buflen == 0) {
 	    		n = 0;
-	    	else {
-	    		c = (char)rd;
-	    		n = 1;
+	    		buflen = -1;
+	    		return cliState.CLI_OK;
+	    	} else {
+		    	n = 1;
+		    	c = cli_read();
 	    	}
-	    	if(n < 0) {
-	    		l = -1;
-	    		break;
-	    	}
-	    		
-/*	    	
-			if ((n = read(cli->fd, &c, sizeof(c))) < 0)
-			{
-				if (errno == EINTR)
-					continue;
 
-
-				perror("read");
-				l = -1;
-				break;
-			}
-*/
 			if (idle_timeout > 0)
 				last_action = time();
 
 			if (n == 0)
 			{
-				l = -1;
+				location = -1;
 				break;
 			}
 
@@ -288,8 +282,8 @@ buf.flip();
 				continue;
 			}
 
-			// BY ycwang, Èç¹ûcli_letÐèÒª´¦ÀíÌØÊâ×Ö·û£¬±ÈÈç'Y/y', Ctrl-CµÈ£¬ÄÇÃ´ÎÒÃÇÈÃÆä´¦Àí£¬
-			// Èç¹ûhandlerÈÏÎª´¦ÀíÍê±Ï£¬ÄÇÃ´ÎÒÃÇÊÍ·ÅÕâ¸ö´¦Àí¾ä±ú¡£
+			// BY ycwang, ï¿½ï¿½ï¿½cli_letï¿½ï¿½Òªï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ö·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½'Y/y', Ctrl-Cï¿½È£ï¿½ï¿½ï¿½Ã´ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ä´¦ï¿½ï¿½
+			// ï¿½ï¿½ï¿½handlerï¿½ï¿½Îªï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ï£ï¿½ï¿½ï¿½Ã´ï¿½ï¿½ï¿½ï¿½ï¿½Í·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 			/*
 			if( null != cli_confirm_callback ) {
 				if(CLI_OK == (*cli->cli_confirm_callback)(cli, cli->cli_confirm_context, c, 0)) {
@@ -301,7 +295,7 @@ buf.flip();
 			}
 			*/
 
-			if (c == (char)255 && 0 == is_telnet_option)
+			if (c == -1 && 0 == is_telnet_option)
 			{
 				is_telnet_option++;
 				continue;
@@ -309,13 +303,14 @@ buf.flip();
 
 			if (is_telnet_option != 0)
 			{
-				if (c >= 251 && c <= 254)
+				int cc = c + 256;
+				if (cc >= 251 && cc <= 254)
 				{
 					is_telnet_option = c;
 					continue;
 				}
 
-				if (c != 255)
+				if (c != -1)
 				{
 					is_telnet_option = 0;
 					continue;
@@ -392,7 +387,7 @@ buf.flip();
 				{
 					int nc = cursor;
 
-					if (l == 0 || cursor == 0)
+					if (location == 0 || cursor == 0)
 						continue;
 
 					while (nc > 0 && cmd[nc - 1] == ' ')
@@ -409,7 +404,7 @@ buf.flip();
 				}
 				else /* char */
 				{
-					if (l == 0 || cursor == 0)
+					if (location == 0 || cursor == 0)
 					{
 						write("\0xa");
 						continue;
@@ -422,7 +417,7 @@ buf.flip();
 				{
 					while (back-- > 0)
 					{
-						if (l == cursor)
+						if (location == cursor)
 						{
 							cmd[--cursor] = 0;
 							if (state != State.STATE_PASSWORD && state != State.STATE_ENABLE_PASSWORD)
@@ -434,7 +429,7 @@ buf.flip();
 							cursor--;
 							if (state != State.STATE_PASSWORD && state != State.STATE_ENABLE_PASSWORD)
 							{
-								for (i = cursor; i <= l; i++) cmd[i] = cmd[i+1];
+								for (i = cursor; i <= location; i++) cmd[i] = cmd[i+1];
 								write("\b");
 								write(cmd[cursor]);
 								write(" ");
@@ -442,7 +437,7 @@ buf.flip();
 									write("\b");
 							}
 						}
-						l--;
+						location--;
 					}
 
 					continue;
@@ -453,14 +448,14 @@ buf.flip();
 			if (c == CTRL('L'))
 			{
 				int i;
-				int cursorback = l - cursor;
+				int cursorback = location - cursor;
 
 				if (state == State.STATE_PASSWORD || state == State.STATE_ENABLE_PASSWORD)
 					continue;
 
 				write("\r\n");
 				show_prompt();
-				write(cmd, 0, l);
+				write(cmd, 0, location);
 
 				for (i = 0; i < cursorback; i++)
 					write("\b");
@@ -472,32 +467,36 @@ buf.flip();
 			if (c == CTRL('U'))
 			{
 				if (state == State.STATE_PASSWORD || state == State.STATE_ENABLE_PASSWORD) {
+					for(int index = 0; index < location; index++)
+						cmd[index] = 0;
 					// memset(cmd, 0, l);
 				} else
-					cli_clear_line(cmd, l, cursor);
+					cli_clear_line(cmd, location, cursor);
 
-				l = cursor = 0;
+				location = cursor = 0;
 				continue;
 			}
 
 			/* kill to EOL */
 			if (c == CTRL('K'))
 			{
-				if (cursor == l)
+				if (cursor == location)
 					continue;
 
 				if (state != State.STATE_PASSWORD && state != State.STATE_ENABLE_PASSWORD)
 				{
 					int cc;
-					for (cc = cursor; cc < l; cc++)
+					for (cc = cursor; cc < location; cc++)
 						write(" ");
 
-					for (cc = cursor; cc < l; cc++)
+					for (cc = cursor; cc < location; cc++)
 						write("\b");
 				}
 
 				//memset(cmd + cursor, 0, l - cursor);
-				l = cursor;
+				for(int index = cursor; index < location; index++)
+					cmd[index] = 0;
+				location = cursor;
 				continue;
 			}
 
@@ -507,11 +506,12 @@ buf.flip();
 				if (state == State.STATE_PASSWORD || state == State.STATE_ENABLE_PASSWORD)
 					break;
 
-				if (l > 0)
+				if (location > 0)
 					continue;
 				// TODO:
 				// strcpy(cmd, "quit");
-				l = cursor = cmd.length;
+				Arrays.copyOf("quit".getBytes(), 4);
+				location = cursor = "quit".length();
 				write("quit\r\n");
 				break;
 			}
@@ -521,7 +521,7 @@ buf.flip();
 			{
 				if (mode != cliMode.MODE_EXEC)
 				{
-					cli_clear_line(cmd, l, cursor);
+					cli_clear_line(cmd, location, cursor);
 					cli_set_configmode(cliMode.MODE_EXEC, null, null);
 					showprompt = true;
 				}
@@ -689,7 +689,7 @@ buf.flip();
 				}
 				else /* Right */
 				{
-					if (cursor < l)
+					if (cursor < location)
 					{
 						if (state != State.STATE_PASSWORD && state != State.STATE_ENABLE_PASSWORD) {
 							char cmdc = (char) cmd[cursor];
@@ -722,25 +722,25 @@ buf.flip();
 			/* end of line */
 			if (c == CTRL('E'))
 			{
-				if (cursor < l)
+				if (cursor < location)
 				{
 					if (state != State.STATE_PASSWORD && state != State.STATE_ENABLE_PASSWORD) {
-						write(cmd, cursor, l - cursor);
+						write(cmd, cursor, location - cursor);
 					}
-					cursor = l;
+					cursor = location;
 				}
 
 				continue;
 			}
 
 			/* normal character typed */
-			if (cursor == l)
+			if (cursor == location)
 			{
 				 /* append to end of line */
 				cmd[cursor] = (byte)c;
-				if (l < (COMMAND_BUFFER_SIZE-1))
+				if (location < (COMMAND_BUFFER_SIZE-1))
 				{
-					l++;
+					location++;
 					cursor++;
 				}
 				else
@@ -756,16 +756,16 @@ buf.flip();
 				{
 					int i;
 					// Move everything one character to the right
-					if (l >= (COMMAND_BUFFER_SIZE-2)) l--;
-					for (i = l; i >= cursor; i--)
+					if (location >= (COMMAND_BUFFER_SIZE-2)) location--;
+					for (i = location; i >= cursor; i--)
 						cmd[i + 1] = cmd[i];
 					// Write what we've just added
 					cmd[cursor] = (byte)c;
 
-					write(cmd,cursor, l - cursor + 1);
-					for (i = 0; i < (l - cursor + 1); i++)
+					write(cmd,cursor, location - cursor + 1);
+					for (i = 0; i < (location - cursor + 1); i++)
 						write("\b");
-					l++;
+					location++;
 				}
 				else
 				{
@@ -776,11 +776,11 @@ buf.flip();
 
 			if (state != State.STATE_PASSWORD && state != State.STATE_ENABLE_PASSWORD)
 			{
-				if (c == '?' && cursor == l)
+				if (c == '?' && cursor == location)
 				{
 					write("\r\n");
 					oldcmd = cmd;
-					oldl = cursor = l - 1;
+					oldl = cursor = location - 1;
 					break;
 				}
 				write(c);
@@ -793,12 +793,14 @@ buf.flip();
 
 		flags = 0;
 
-		if (l < 0) break;
-	    if (cmd.equals("quit")) break;
+		if (location < 0) break;
+	    //if (cmd.equals("quit")) break;
+		String cmdString = new String(cmd, 0, location);
+		if (cmdString.equals("quit")) break;
 
 	    if (state == State.STATE_LOGIN)
 	    {
-	        if (l == 0) continue;
+	        if (location == 0) continue;
 
 	        /* require login */
 	        /*
@@ -885,8 +887,8 @@ buf.flip();
 	    }
 	    else
 	    {
-	        if (l == 0) continue;
-	        if (cmd[l - 1] != '?' && cmd.equals("history"))
+	        if (location == 0) continue;
+	        if (cmd[location - 1] != '?' && cmd.equals("history"))
 	            cli_add_history(cmd);
 
 	        if (cli_run_command(cmd) == cliState.CLI_QUIT) {
@@ -911,7 +913,7 @@ buf.flip();
 		pevent_unregister(&cli->read);
 		pevent_unregister(&cli->checker);
 	     */
-		// ´¦Àícli_let»Øµ÷º¯Êý, ¸æÖªÆäcli¹Ø±Õ£¬ÈÃÆäÇåÀí»·¾³¡£
+		// ï¿½ï¿½ï¿½ï¿½cli_letï¿½Øµï¿½ï¿½ï¿½ï¿½ï¿½, ï¿½ï¿½Öªï¿½ï¿½cliï¿½Ø±Õ£ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
 		/*
 		if( cli->cli_confirm_callback )
 			(*cli->cli_confirm_callback)(cli, cli->cli_confirm_context, 0, 1);
@@ -950,11 +952,12 @@ buf.flip();
 		System.out.println("TODO: close_monitor");
 	}
 	
-	private char CTRL(char c) {
-		return (char) (c-'@');
+	private byte CTRL(char c) {
+		return (byte) ((byte)c-'@');
 	}
 	
 	private cliState cli_run_command(byte cmd[]) {
+		System.out.println("Run cmd: " + new String(cmd));
 		return cliState.CLI_OK;
 	}
 	
@@ -970,22 +973,12 @@ buf.flip();
 		return 0;
 	}
 	
-	ByteBuffer buf = ByteBuffer.allocate(1024);
-	private int buflen = 0;
-	private int cli_read() throws IOException {
-		if(buflen == 0) {
-		buflen = _socket.read(buf);
-		if(buflen > 0)
-			buf.flip();
-		}
-		if(buflen == 0)
-			return -2;
-		
-		int c = 0;
+	ByteBuffer buf; // = ByteBuffer.allocate(1024);
+	private int buflen = -1;
+	private byte cli_read() throws IOException {
 		byte b = buf.get();
 		buflen--;
-		c = b >= 0 ? b : (0xff+b+1);
-		return c;
+		return b;
 	}
 	
 	private void cli_clear_line(byte cmd[], int start, int end) {
