@@ -40,7 +40,6 @@ public class JCli implements Runnable {
 		}, 0, 1000);
 
 		SelectionKey selectKey = _socket.register(sel, SelectionKey.OP_READ);
-		// ByteBuffer buf = ByteBuffer.allocate(128);
 		boolean quit = false;
 		while (!quit && selectKey.selector().select() > 0) {
 
@@ -52,7 +51,13 @@ public class JCli implements Runnable {
 				it.remove();
 
 				if (key.isReadable()) {
-					loop(selectReason.READ);
+					if(cliState.CLI_QUIT == loop(selectReason.READ) ) {
+						timer.cancel();
+						key.cancel();
+						sel.close();
+						_socket.close();
+						return false;
+					}
 				}
 			}
 		}
@@ -95,27 +100,6 @@ public class JCli implements Runnable {
 		return 0;
 	}
 
-	private void initcli() {
-		// ״̬��ʼ��
-		/*
-		oldl = 0;
-		cli_state->is_telnet_option = 0;
-		cli_state->skip = 0;
-		cli_state->esc = 0;
-		cli_state->cursor = 0;
-		cli_state->insertmode = 1;
-		cli_state->oldcmd = NULL;
-		cli_state->cmd = NULL;
-		cli_state->in_history = 0;
-		cli_state->lastchar = 0;
-		cli_state->username = NULL;
-		cli_state->password = NULL;
-		cli_state->flags = 0;
-		cli_state->quit_handler = quit_handler;
-		cli_state->cli = cli;
-		*/
-	}
-	
 	interface confirmcallback {
 		
 	}
