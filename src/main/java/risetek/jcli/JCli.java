@@ -19,6 +19,7 @@ public class JCli implements Runnable {
 			(byte)0xFF,(byte)0xFD,(byte)0x03,(byte)0xFF,(byte)0xFD,(byte)0x01};
 
 	private static int PRIVILEGE_UNPRIVILEGED = 0; 
+	private static int PRIVILEGE_PRIVILEGED = 1; 
 	
 	CliCallback cli_int_history = new CliCallback() {
 
@@ -957,7 +958,10 @@ public class JCli implements Runnable {
 	private void cli_error(String format, Object...args ) throws IOException{
 		if(_helper_print != null)
 			_helper_print.print(format, args);
+		else
+			write(String.format(format+"\r\n", args));
 		// System.out.println(String.format(fmt+"\r\n", objects));
+		
 	}
 	
 	private void close_monitor() {
@@ -1117,12 +1121,18 @@ public class JCli implements Runnable {
 		cli_command next;
 		int push_command;
 
+		int unique_len[][] = new int[10][2];
+		
 		String command;
 		Wilds_callback wilds_callback;
 		CliCallback callback;
 		int privilege;
 		private cliMode mode;
 		String help;
+		
+		public cli_command() {
+
+		}
 	}
 	private class Common {
 		cli_command commands;
@@ -1133,7 +1143,7 @@ public class JCli implements Runnable {
 		
 	}
 	private Common common = new Common();
-	private int privilege;
+	private int privilege = PRIVILEGE_PRIVILEGED;
 	private cliState cli_find_command(cliMode mode, cli_command commands, CliCallback havecallback,
 			List<String> words, int start_word, List<String> filters,int wilds, hide_command auto_hide_commands)
 					throws IOException {
@@ -1403,9 +1413,50 @@ public class JCli implements Runnable {
 		write(String.format(format+"\r\n", args));
 	}
 
-	private int get_unique_len(cli_command c1, cli_command c2) {
-		return Math.min(c1.command.length(), c2.command.length());
+	private int get_unique_len(cli_command head, cli_command c) {
+			if ((c.mode != MODE_ANY && c.mode != mode) || c.privilege > privilege)
+			{
+				if( c.unique_len[privilege][1] == 0)
+					c.unique_len[privilege][1] = c.command.length();
+				return c.unique_len[privilege][1];
+			}
+
+			if( c.unique_len[privilege][0] == 0) {
+
+				cli_command p;
+			    String cp, pp;
+			    int len;
+
+				c.unique_len[privilege][0] = 1;
+				for (p = head; p!=null; p = p.next)
+				{
+					if (c == p)
+							continue;
+
+					if ((p.mode != MODE_ANY && p.mode != mode) ||
+						p.privilege > privilege)
+							continue;
+
+					cp = c.command;
+					pp = p.command;
+					len = 1;
+					int min = Math.min(cp.length(), pp.length());
+					
+					//while((len < min) && (cp.charAt(len-1) == pp.charAt(len-1)) && (cp.charAt(len) == pp.charAt(len)))
+					while((len < min) && (cp.charAt(len-1) == pp.charAt(len-1)))
+						len++;
+/*
+					while (*cp && *pp && *cp++ == *pp++)
+						len++;
+*/
+					if (len > c.unique_len[privilege][0])
+						c.unique_len[privilege][0] = len;
+				}
+			}
+
+			return c.unique_len[privilege][0];
 	}
+
 	ByteBuffer buf; // = ByteBuffer.allocate(1024);
 	private int buflen = -1;
 	private byte cli_read() throws IOException {
@@ -1482,15 +1533,6 @@ public class JCli implements Runnable {
 	    		else
 	    			r = parent.children;
 	    	
-	    		/*
-		    r = ( parent == null ) ? common.commands : parent.children;
-		
-			if (r==null)
-			{
-				r = c;
-			}
-			else
-			*/
 	    	if(r != null)
 			{
 				for (p = r; p!=null && p.next!=null; p = p.next);
