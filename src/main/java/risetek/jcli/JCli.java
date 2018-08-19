@@ -23,8 +23,8 @@ public class JCli implements Runnable {
 	CliCallback cli_int_history = new CliCallback() {
 
 		@Override
-		public cliState call(String command, List<String> words, int start, int argc) throws IOException {
-			write("do command:"+command);
+		public cliState call(JCli cli, String command, List<String> words, int start, int argc) throws IOException {
+			cli.print("do command:"+command);
 			return cliState.CLI_OK;
 		}
 		
@@ -33,8 +33,8 @@ public class JCli implements Runnable {
 	CliCallback cli_int_help = new CliCallback() {
 
 		@Override
-		public cliState call(String command, List<String> words, int start, int argc) throws IOException {
-			write("do command:"+command);
+		public cliState call(JCli cli, String command, List<String> words, int start, int argc) throws IOException {
+			cli.print("do command:"+command + " start with:" + start + " argc:" + argc);
 			return cliState.CLI_OK;
 		}
 		
@@ -954,9 +954,10 @@ public class JCli implements Runnable {
 		write("prompt:");
 	}
 	
-	private void cli_error(String fmt, Object...objects ) throws IOException{
-		write(String.format(fmt, objects));
-		// System.out.println(String.format(fmt, objects));
+	private void cli_error(String format, Object...args ) throws IOException{
+		if(_helper_print != null)
+			_helper_print.print(format, args);
+		// System.out.println(String.format(fmt+"\r\n", objects));
 	}
 	
 	private void close_monitor() {
@@ -1104,24 +1105,12 @@ public class JCli implements Runnable {
 		int call(cli_command command, String word);
 	}
 	interface CliCallback {
-		//callback(cli, cli_command_name(cli, c), words + start_word + 1, (c_words - start_word - 1)+wilds);
-		cliState call(String command, List<String> words, int start, int argc) throws IOException;
+		cliState call(JCli cli, String command, List<String> words, int start, int argc) throws IOException;
 	}
 	interface IHelper_print {
-		void print(String args);
+		void print(String format, Object ...args) throws IOException;
 	}
 	
-	private class Helper_print implements IHelper_print {
-
-		@Override
-		public void print(String args) {
-			
-		}
-		
-	}
-	private void cli_print_callback(IHelper_print helper_print) {
-		helper_print.print("help");
-	}
 	// enum Privilege {}
 	private class cli_command {
 		cli_command children;
@@ -1179,9 +1168,9 @@ public class JCli implements Runnable {
 				&& (c.mode == mode || c.mode == MODE_ANY)
 				&& !link_hide_command(auto_hide_commands, c) )
 			    {
-						//cli_print_callback(helper_print);
-	                    cli_error("  %-20s %s\r\n", c.command, c.help==null ? null : c.help);
-						//cli_print_callback(cli, NULL);
+						cli_print_callback(helper_print);
+	                    cli_error("  %-20s %s", c.command, c.help==null ? null : c.help);
+						cli_print_callback(null);
 			    }
 	        }
 
@@ -1354,8 +1343,7 @@ public class JCli implements Runnable {
 				{
 					// 我们应该在这里转换mode
 					cli_set_configmode(mode, null, null);
-					System.out.println("we do command:" + c.command);
-					rc = c.callback.call(c.command, words,  start_word + 1, (c_words - start_word - 1)+wilds);
+					rc = c.callback.call(this, c.command, words,  start_word + 1, (c_words - start_word - 1)+wilds);
 				}
 /*
 				while (cli->common->filters)
@@ -1391,7 +1379,7 @@ public class JCli implements Runnable {
 	}
 	private boolean strncasecmp(String a, String b, int len) {
 		boolean ret = (a.regionMatches(true, 0, b, 0, len));
-		System.out.println("cmp:" + a + " with:" + b + " len:" + len + " is:" + (ret ? " true" : " false"));
+		// System.out.println("cmp:" + a + " with:" + b + " len:" + len + " is:" + (ret ? " true" : " false"));
 		return !ret;
 	}
 	private boolean link_hide_command(hide_command hideCommand, cli_command command) {
@@ -1410,6 +1398,11 @@ public class JCli implements Runnable {
 	private int cli_get_completions() {
 		return 0;
 	}
+	
+	public void print(String format, Object ...args) throws IOException {
+		write(String.format(format+"\r\n", args));
+	}
+
 	private int get_unique_len(cli_command c1, cli_command c2) {
 		return Math.min(c1.command.length(), c2.command.length());
 	}
@@ -1428,6 +1421,21 @@ public class JCli implements Runnable {
 	private void cli_set_configmode(cliMode mode, String a, String b) {
 		
 	}
+	
+	IHelper_print _helper_print = null;
+	
+	IHelper_print helper_print = new IHelper_print() {
+
+		@Override
+		public void print(String format, Object... args) throws IOException {
+			write(String.format(format+"\r\n", args));
+		}
+	};
+	
+	private void cli_print_callback(IHelper_print helper_print) {
+		_helper_print = helper_print;
+	}
+	
 	@Override
 	public void run() {
 		try {
