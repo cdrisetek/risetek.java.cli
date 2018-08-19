@@ -1101,12 +1101,12 @@ public class JCli implements Runnable {
 
 	private cliMode mode = MODE_EXEC;
 	
-	private class cliMode {
+	public class cliMode {
 		cliMode parent;
 	}
 	
 	interface Wilds_callback {
-		int call(cli_command command, String word);
+		int call(Cli_command command, String word);
 	}
 	interface CliCallback {
 		cliState call(JCli cli, String command, List<String> words, int start, int argc) throws IOException;
@@ -1116,35 +1116,17 @@ public class JCli implements Runnable {
 	}
 	
 	// enum Privilege {}
-	private class cli_command {
-		cli_command children;
-		cli_command next;
-		int push_command;
-
-		int unique_len[][] = new int[10][2];
-		
-		String command;
-		Wilds_callback wilds_callback;
-		CliCallback callback;
-		int privilege;
-		private cliMode mode;
-		String help;
-		
-		public cli_command() {
-
-		}
-	}
 	private class Common {
-		cli_command commands;
+		Cli_command commands;
 		cli_filter	filters;
 	}
 	
-	private class cli_filter {
+	public class cli_filter {
 		
 	}
 	private Common common = new Common();
 	private int privilege = PRIVILEGE_PRIVILEGED;
-	private cliState cli_find_command(cliMode mode, cli_command commands, CliCallback havecallback,
+	private cliState cli_find_command(cliMode mode, Cli_command commands, CliCallback havecallback,
 			List<String> words, int start_word, List<String> filters,int wilds, hide_command auto_hide_commands)
 					throws IOException {
 		/*
@@ -1155,7 +1137,7 @@ public class JCli implements Runnable {
 	        c_words = filters[0];
 */
 		int c_words = words.size();
-		cli_command c, again=null;
+		Cli_command c, again=null;
 		if(words.size() < start_word)
 			return cliState.CLI_ERROR;
 	    //if (!words[start_word])	        return CLI_ERROR;
@@ -1392,13 +1374,13 @@ public class JCli implements Runnable {
 		// System.out.println("cmp:" + a + " with:" + b + " len:" + len + " is:" + (ret ? " true" : " false"));
 		return !ret;
 	}
-	private boolean link_hide_command(hide_command hideCommand, cli_command command) {
+	private boolean link_hide_command(hide_command hideCommand, Cli_command command) {
 		return false;
 	}
 	private void cli_add_history(byte cmd[]) {
 		
 	}
-	private boolean isSuperMode(cliMode mode, cli_command command) {
+	private boolean isSuperMode(cliMode mode, Cli_command command) {
 		return false;
 	}
 	private long time() {
@@ -1413,7 +1395,7 @@ public class JCli implements Runnable {
 		write(String.format(format+"\r\n", args));
 	}
 
-	private int get_unique_len(cli_command head, cli_command c) {
+	private int get_unique_len(Cli_command head, Cli_command c) {
 			if ((c.mode != MODE_ANY && c.mode != mode) || c.privilege > privilege)
 			{
 				if( c.unique_len[privilege][1] == 0)
@@ -1423,7 +1405,7 @@ public class JCli implements Runnable {
 
 			if( c.unique_len[privilege][0] == 0) {
 
-				cli_command p;
+				Cli_command p;
 			    String cp, pp;
 			    int len;
 
@@ -1505,13 +1487,13 @@ public class JCli implements Runnable {
 
 
 
-	public cli_command cli_register_command(cli_command parent, String command,
+	public Cli_command cli_register_command(Cli_command parent, String command,
 			CliCallback callback, int privilege, cliMode mode, String help)
 		{
-		    cli_command c, p;
+		    Cli_command c, p;
 
 		    if (command == null) return null;
-		    c = new cli_command();
+		    c = new Cli_command();
 		    
 		    c.callback = callback;
 		    c.next = null;
@@ -1521,7 +1503,7 @@ public class JCli implements Runnable {
 		    c.mode = mode;
 	    	c.help=help;
 
-	    	cli_command r = null;
+	    	Cli_command r = null;
 	    	if(parent == null)
 	    		if(common.commands == null)
 	    			common.commands = c;
