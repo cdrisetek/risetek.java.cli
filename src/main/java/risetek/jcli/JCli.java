@@ -13,40 +13,21 @@ import java.util.Timer;
 import java.util.TimerTask;
 import java.util.Vector;
 
+import risetek.jcli.Cli_common.cliMode;
+
 public class JCli implements Runnable {
 	SocketChannel _socket;
 	byte negotiate[] = {(byte)0xFF,(byte)0xFB,(byte)0x03,(byte)0xFF,(byte)0xFB,(byte)0x01,
 			(byte)0xFF,(byte)0xFD,(byte)0x03,(byte)0xFF,(byte)0xFD,(byte)0x01};
 
-	private static int PRIVILEGE_UNPRIVILEGED = 0; 
-	private static int PRIVILEGE_PRIVILEGED = 1; 
-	
-	CliCallback cli_int_history = new CliCallback() {
 
-		@Override
-		public cliState call(JCli cli, String command, List<String> words, int start, int argc) throws IOException {
-			cli.print("do command:"+command);
-			return cliState.CLI_OK;
-		}
-		
-	};
-	
-	CliCallback cli_int_help = new CliCallback() {
-
-		@Override
-		public cliState call(JCli cli, String command, List<String> words, int start, int argc) throws IOException {
-			cli.print("do command:"+command + " start with:" + start + " argc:" + argc);
-			return cliState.CLI_OK;
-		}
-		
-	};
 	
 	public JCli(SocketChannel socket) {
 		_socket = socket;
 		
 		
-		cli_register_command(null, "history", cli_int_history, PRIVILEGE_UNPRIVILEGED, MODE_EXEC, "Display the session command history");		
-		cli_register_command(null, "help", cli_int_help, PRIVILEGE_UNPRIVILEGED, MODE_EXEC, "Display the help of commands");		
+		//cli_register_command(null, "history", cli_int_history, PRIVILEGE_UNPRIVILEGED, Cli_common.MODE_EXEC, "Display the session command history");
+		//cli_register_command(null, "help", cli_int_help, PRIVILEGE_UNPRIVILEGED, Cli_common.MODE_EXEC, "Display the help of commands");		
 	}
 
 	private boolean schedule() throws IOException {
@@ -530,10 +511,10 @@ public class JCli implements Runnable {
 			/* disable */
 			if (c == CTRL('Z'))
 			{
-				if (mode != MODE_EXEC)
+				if (mode != Cli_common.MODE_EXEC)
 				{
 					cli_clear_line(cmd, location, cursor);
-					cli_set_configmode(MODE_EXEC, null, null);
+					cli_set_configmode(Cli_common.MODE_EXEC, null, null);
 					showprompt = true;
 				}
 
@@ -887,7 +868,7 @@ public class JCli implements Runnable {
 	        if (allowed)
 	        {
 	            state = State.STATE_ENABLE;
-	            cli_set_privilege(cli, PRIVILEGE_PRIVILEGED);
+	            cli_set_privilege(cli, Cli_common.PRIVILEGE_PRIVILEGED);
 	        }
 	        else
 	        {
@@ -1095,37 +1076,26 @@ public class JCli implements Runnable {
 		    return r;
 	}
 	
-	cliMode MODE_ANY = new cliMode();
-	cliMode MODE_EXEC = new cliMode();
-	cliMode MODE_CONFIG = new cliMode();
 
-	private cliMode mode = MODE_EXEC;
+	private cliMode mode = Cli_common.MODE_EXEC;
 	
-	public class cliMode {
-		cliMode parent;
-	}
-	
+
 	interface Wilds_callback {
 		int call(Cli_command command, String word);
 	}
-	interface CliCallback {
-		cliState call(JCli cli, String command, List<String> words, int start, int argc) throws IOException;
-	}
+
 	interface IHelper_print {
 		void print(String format, Object ...args) throws IOException;
 	}
 	
 	// enum Privilege {}
-	private class Common {
-		Cli_command commands;
-		cli_filter	filters;
-	}
-	
 	public class cli_filter {
 		
 	}
-	private Common common = new Common();
-	private int privilege = PRIVILEGE_PRIVILEGED;
+	
+	private Cli_common common = Cli_common.getInstance();
+	
+	private int privilege = Cli_common.PRIVILEGE_PRIVILEGED;
 	private cliState cli_find_command(cliMode mode, Cli_command commands, CliCallback havecallback,
 			List<String> words, int start_word, List<String> filters,int wilds, hide_command auto_hide_commands)
 					throws IOException {
@@ -1157,7 +1127,7 @@ public class JCli implements Runnable {
 			    || !strncasecmp(c.command, words.get(start_word), l))
 	                && (c.callback!=null || c.children!=null)
 	                && privilege >= c.privilege
-				&& (c.mode == mode || c.mode == MODE_ANY)
+				&& (c.mode == mode || c.mode == Cli_common.MODE_ANY)
 				&& !link_hide_command(auto_hide_commands, c) )
 			    {
 						cli_print_callback(helper_print);
@@ -1184,7 +1154,7 @@ public class JCli implements Runnable {
 	    else if(words.get(start_word).endsWith("!"))
 	    {
 			//fix the '!' conf bug 20130220
-			if(mode == MODE_CONFIG)
+			if(mode == Cli_common.MODE_CONFIG)
 				return cliState.CLI_OK;
 			// TODO:!!!
 			//cli_set_configmode(mode->parent, null, null);
@@ -1226,7 +1196,7 @@ public class JCli implements Runnable {
 				wilds++;
 			}
 
-			if (c.mode == mode || c.mode == MODE_ANY )
+			if (c.mode == mode || c.mode == Cli_common.MODE_ANY )
 			{
 				cliState rc = cliState.CLI_OK;
 				int f;
@@ -1360,7 +1330,7 @@ public class JCli implements Runnable {
 			}
 	    }
 	    // drop out of config submode if we have matched command on MODE_CONFIG
-	   	if(again!=null && (mode.parent != null) && (mode.parent != MODE_EXEC) )
+	   	if(again!=null && (mode.parent != null) && (mode.parent != Cli_common.MODE_EXEC) )
 		{
 			c = again;
 			return cli_find_command(mode.parent, c.children, c.callback, words, start_word + 1, filters,wilds, auto_hide_commands);
@@ -1396,7 +1366,7 @@ public class JCli implements Runnable {
 	}
 
 	private int get_unique_len(Cli_command head, Cli_command c) {
-			if ((c.mode != MODE_ANY && c.mode != mode) || c.privilege > privilege)
+			if ((c.mode != Cli_common.MODE_ANY && c.mode != mode) || c.privilege > privilege)
 			{
 				if( c.unique_len[privilege][1] == 0)
 					c.unique_len[privilege][1] = c.command.length();
@@ -1415,7 +1385,7 @@ public class JCli implements Runnable {
 					if (c == p)
 							continue;
 
-					if ((p.mode != MODE_ANY && p.mode != mode) ||
+					if ((p.mode != Cli_common.MODE_ANY && p.mode != mode) ||
 						p.privilege > privilege)
 							continue;
 
@@ -1487,39 +1457,4 @@ public class JCli implements Runnable {
 
 
 
-	public Cli_command cli_register_command(Cli_command parent, String command,
-			CliCallback callback, int privilege, cliMode mode, String help)
-		{
-		    Cli_command c, p;
-
-		    if (command == null) return null;
-		    c = new Cli_command();
-		    
-		    c.callback = callback;
-		    c.next = null;
-			c.wilds_callback = null;
-			c.command = command;
-		    c.privilege = privilege;
-		    c.mode = mode;
-	    	c.help=help;
-
-	    	Cli_command r = null;
-	    	if(parent == null)
-	    		if(common.commands == null)
-	    			common.commands = c;
-	    		else
-	    			r = common.commands;
-	    	else
-	    		if(parent.children == null)
-	    			parent.children = c;
-	    		else
-	    			r = parent.children;
-	    	
-	    	if(r != null)
-			{
-				for (p = r; p!=null && p.next!=null; p = p.next);
-				if (p!=null) p.next = c;
-			}
-		    return c;
-		}
 }
