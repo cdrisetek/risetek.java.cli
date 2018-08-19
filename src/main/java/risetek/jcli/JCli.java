@@ -18,8 +18,34 @@ public class JCli implements Runnable {
 	byte negotiate[] = {(byte)0xFF,(byte)0xFB,(byte)0x03,(byte)0xFF,(byte)0xFB,(byte)0x01,
 			(byte)0xFF,(byte)0xFD,(byte)0x03,(byte)0xFF,(byte)0xFD,(byte)0x01};
 
+	private static int PRIVILEGE_UNPRIVILEGED = 0; 
+	
+	CliCallback cli_int_history = new CliCallback() {
+
+		@Override
+		public cliState call(String command, List<String> words, int start, int argc) throws IOException {
+			write("do command:"+command);
+			return cliState.CLI_OK;
+		}
+		
+	};
+	
+	CliCallback cli_int_help = new CliCallback() {
+
+		@Override
+		public cliState call(String command, List<String> words, int start, int argc) throws IOException {
+			write("do command:"+command);
+			return cliState.CLI_OK;
+		}
+		
+	};
+	
 	public JCli(SocketChannel socket) {
 		_socket = socket;
+		
+		
+		cli_register_command(null, "history", cli_int_history, PRIVILEGE_UNPRIVILEGED, MODE_EXEC, "Display the session command history");		
+		cli_register_command(null, "help", cli_int_help, PRIVILEGE_UNPRIVILEGED, MODE_EXEC, "Display the help of commands");		
 	}
 
 	private boolean schedule() throws IOException {
@@ -33,7 +59,7 @@ public class JCli implements Runnable {
 			@Override
 			public void run() {
 				try {
-					System.out.println("timer");
+					// System.out.println("timer");
 					loop(selectReason.TIMER);
 				} catch (IOException e) {
 					e.printStackTrace();
@@ -110,9 +136,8 @@ public class JCli implements Runnable {
 	}
 	
 	enum selectReason {READ, TIMER}
-	enum cliState {CLI_OK, CLI_QUIT, CLI_ERROR}
+	enum cliState {CLI_OK, CLI_QUIT, CLI_ERROR, CLI_ERROR_ARG}
 	enum State { STATE_LOGIN, STATE_PASSWORD, STATE_NORMAL, STATE_ENABLE_PASSWORD, STATE_ENABLE }
-	enum cliMode {MODE_EXEC}
 	private int flags = 0;
 	private boolean showprompt = false;
 	private byte oldcmd[] = null;
@@ -133,7 +158,6 @@ public class JCli implements Runnable {
 	private static int MAX_HISTORY = 100;
 	private static int COMMAND_BUFFER_SIZE = 1024;
 	private int n;
-	private cliMode mode;
 	private boolean insertmode = false;
 	private String username = null;
 	private String password = null;
@@ -505,10 +529,10 @@ public class JCli implements Runnable {
 			/* disable */
 			if (c == CTRL('Z'))
 			{
-				if (mode != cliMode.MODE_EXEC)
+				if (mode != MODE_EXEC)
 				{
 					cli_clear_line(cmd, location, cursor);
-					cli_set_configmode(cliMode.MODE_EXEC, null, null);
+					cli_set_configmode(MODE_EXEC, null, null);
 					showprompt = true;
 				}
 
@@ -930,8 +954,9 @@ public class JCli implements Runnable {
 		write("prompt:");
 	}
 	
-	private void cli_error(String message) {
-		System.out.println("TODO: cli_error");
+	private void cli_error(String fmt, Object...objects ) throws IOException{
+		write(String.format(fmt, objects));
+		// System.out.println(String.format(fmt, objects));
 	}
 	
 	private void close_monitor() {
@@ -949,7 +974,7 @@ public class JCli implements Runnable {
 		return c == ' ';
 	}
 
-	String[] cli_parse_line(byte[] line)
+	List<String> cli_parse_line(byte[] line)
 	{
 		List<String> words = new Vector<>();
 		int index = 0;
@@ -1015,24 +1040,27 @@ public class JCli implements Runnable {
 	    }
 
 	    //return nwords;
-	    return words.toArray(new String[0]);
+	    return words;
 	}	
-	private cliState cli_run_command(byte cmd[]) {
+	private cliState cli_run_command(byte cmd[]) throws IOException {
 		System.out.println("Run cmd: " + new String(cmd));
 		cliState r = cliState.CLI_OK;
+	    hide_command	auto_hide_commands = null;
+	    int index = 0;
+	    while(cmd[index] == ' ')
+	    	index++;
+	    
+	    if (cmd[index] == 0) return cliState.CLI_OK;
 		
-		String[] words = cli_parse_line(cmd);
+		List<String> words = cli_parse_line(cmd);
+		if(words.size() == 0)
+			return cliState.CLI_ERROR;
+		r = cli_find_command(mode, common.commands, null, words, 0, null, 0, auto_hide_commands);
 /*		
 		    int num_words, i, f;
 		    // 由于要push命令到这里面，所以我们要扩大这个空间。
 		    char *words[128 * 2] = {0};
 		    // int filters[128] = {0};
-		    hide_command	auto_hide_commands = null;
-		    int index = 0;
-		    while(cmd[index] == ' ')
-		    	index++;
-		    
-		    if (cmd[index] == 0) return cliState.CLI_OK;
 		    // 最大只能占用一半
 		    num_words = cli_parse_line(command, words, sizeof(words) / sizeof(words[0]) / 2);
 		    
@@ -1050,7 +1078,7 @@ public class JCli implements Runnable {
 		
 /*		
 		    if (num_words)
-				r = cli_find_command(cli, cli->mode, cli->common->commands, NULL, num_words, words, 0, filters, 0, &auto_hide_commands);
+				r = cli_find_command(mode, cli->common->commands, NULL, num_words, words, 0, filters, 0, &auto_hide_commands);
 		    else
 		        r = cliState.CLI_ERROR;
 
@@ -1062,10 +1090,319 @@ public class JCli implements Runnable {
 		    return r;
 	}
 	
+	cliMode MODE_ANY = new cliMode();
+	cliMode MODE_EXEC = new cliMode();
+	cliMode MODE_CONFIG = new cliMode();
+
+	private cliMode mode = MODE_EXEC;
+	
+	private class cliMode {
+		cliMode parent;
+	}
+	
+	interface Wilds_callback {
+		int call(cli_command command, String word);
+	}
+	interface CliCallback {
+		//callback(cli, cli_command_name(cli, c), words + start_word + 1, (c_words - start_word - 1)+wilds);
+		cliState call(String command, List<String> words, int start, int argc) throws IOException;
+	}
+	interface IHelper_print {
+		void print(String args);
+	}
+	
+	private class Helper_print implements IHelper_print {
+
+		@Override
+		public void print(String args) {
+			
+		}
+		
+	}
+	private void cli_print_callback(IHelper_print helper_print) {
+		helper_print.print("help");
+	}
+	// enum Privilege {}
+	private class cli_command {
+		cli_command children;
+		cli_command next;
+		int push_command;
+
+		String command;
+		Wilds_callback wilds_callback;
+		CliCallback callback;
+		int privilege;
+		private cliMode mode;
+		String help;
+	}
+	private class Common {
+		cli_command commands;
+		cli_filter	filters;
+	}
+	
+	private class cli_filter {
+		
+	}
+	private Common common = new Common();
+	private int privilege;
+	private cliState cli_find_command(cliMode mode, cli_command commands, CliCallback havecallback,
+			List<String> words, int start_word, List<String> filters,int wilds, hide_command auto_hide_commands)
+					throws IOException {
+		/*
+	    struct cli_command *c, *again = NULL;
+	    int c_words = num_words;
+
+	    if (filters[0])
+	        c_words = filters[0];
+*/
+		int c_words = words.size();
+		cli_command c, again=null;
+		if(words.size() < start_word)
+			return cliState.CLI_ERROR;
+	    //if (!words[start_word])	        return CLI_ERROR;
+
+	    // Deal with ? for help
+	    //if (words[start_word][strlen(words[start_word]) - 1] == '?')
+		if(words.get(start_word).endsWith("?"))
+	    {
+	        //int l = strlen(words[start_word])-1;
+	        int l = words.get(start_word).length() -1;
+	        
+			//words[start_word][strlen(words[start_word]) - 1] = '\0';
+
+	        for (c = commands; c != null; c = c.next)
+	        {
+			    if ( ((c.wilds_callback != null && (c.wilds_callback.call(c, words.get(start_word)) != 0))
+			    || !strncasecmp(c.command, words.get(start_word), l))
+	                && (c.callback!=null || c.children!=null)
+	                && privilege >= c.privilege
+				&& (c.mode == mode || c.mode == MODE_ANY)
+				&& !link_hide_command(auto_hide_commands, c) )
+			    {
+						//cli_print_callback(helper_print);
+	                    cli_error("  %-20s %s\r\n", c.command, c.help==null ? null : c.help);
+						//cli_print_callback(cli, NULL);
+			    }
+	        }
+
+			if( commands == null ){
+				if( l == 0 )
+					cli_error("  %-20s", "<cr>");
+				else
+					cli_error("  %-20s", "Unrecognized command");
+			}
+			else
+			{
+				if (havecallback != null && ( l == 0 ))
+					cli_error("  %-20s", "<cr>");
+			}
+
+	        return cliState.CLI_OK;
+	    }
+//	    else if(words[start_word][strlen(words[start_word]) - 1] == '!')
+	    else if(words.get(start_word).endsWith("!"))
+	    {
+			//fix the '!' conf bug 20130220
+			if(mode == MODE_CONFIG)
+				return cliState.CLI_OK;
+			// TODO:!!!
+			//cli_set_configmode(mode->parent, null, null);
+			return cliState.CLI_OK;
+	    }
+
+	    for (c = commands; c!=null; c = c.next)
+	    {
+
+	        if (privilege < c.privilege)
+	            continue;
+
+			if( c.wilds_callback != null )
+			{
+				if(c.wilds_callback.call(c, words.get(start_word))!=0)
+					continue;
+			}
+			else
+			{
+				if (strncasecmp(c.command, words.get(start_word), get_unique_len(commands, c)))
+		            continue;
+
+		        if (strncasecmp(c.command, words.get(start_word), words.get(start_word).length()))
+		            continue;
+			}
+
+			if(link_hide_command(auto_hide_commands, c) )  continue;
+
+			// 通配符匹配的命令压入到命令表中。
+			if( c.wilds_callback != null)
+			{
+				// words[num_words+wilds] = words[start_word];
+				wilds++;
+			}
+			// 特别的命令需要提供给执行函数的压入到命令表中。
+			if( c.push_command != 0)
+			{
+				// words[num_words+wilds] = c->command;
+				wilds++;
+			}
+
+			if (c.mode == mode || c.mode == MODE_ANY )
+			{
+				cliState rc = cliState.CLI_OK;
+				int f;
+				cli_filter filt = common.filters;
+/*
+				// Found a word!
+				if (start_word == c_words - 1)
+				{
+					// TODO:!!!
+					if (c.callback != null)						goto CORRECT_CHECKS;
+
+					cli_error("Incomplete command");
+					return cliState.CLI_ERROR;
+				}
+				rc = cli_find_command(mode, c.children, c.callback, words, start_word + 1, filters,wilds, auto_hide_commands);
+				return rc;
+*/
+				// Found a word!
+				if (start_word != c_words - 1) {
+					rc = cli_find_command(mode, c.children, c.callback, words, start_word + 1, filters,wilds, auto_hide_commands);
+					return rc;
+				}
+
+				if (c.callback == null) {
+					cli_error("Incomplete command");
+					return cliState.CLI_ERROR;
+				}
+/*
+				for (f = 0; rc == cliState.CLI_OK && filters[f]; f++)
+				{
+					int n = num_words;
+					char **argv;
+					int argc;
+					int len;
+
+					if (filters[f+1])
+					n = filters[f+1];
+
+					if (filters[f] == n - 1)
+					{
+						cli_error(cli, "Missing filter");
+						return CLI_ERROR;
+					}
+
+					argv = words + filters[f] + 1;
+					argc = n - (filters[f] + 1);
+					len = strlen(argv[0]);
+					if (argv[argc - 1][strlen(argv[argc - 1]) - 1] == '?')
+					{
+						if (argc == 1)
+						{
+							int i;
+
+							for(i = 0; filter_cmds[i].cmd; i++)
+							{
+								cli_error(cli, "  %-20s %s", filter_cmds[i].cmd, filter_cmds[i].help );
+							}
+						}
+						else
+						{
+							if (argv[0][0] != 'c') // count
+								cli_error(cli, "  WORD");
+
+							if (argc > 2 || argv[0][0] == 'c') // count
+								cli_error(cli, "  <cr>");
+						}
+
+						return CLI_OK;
+					}
+
+					if (argv[0][0] == 'b' && len < 3) // [beg]in, [bet]ween
+					{
+						cli_error(cli, "Ambiguous filter \"%s\" (begin, between)", argv[0]);
+						return CLI_ERROR;
+					}
+					*filt = calloc(1, sizeof(struct cli_filter));
+
+					if (!strncmp("include", argv[0], len) ||
+						!strncmp("exclude", argv[0], len) ||
+						!strncmp("grep", argv[0], len) ||
+						!strncmp("egrep", argv[0], len))
+							rc = cli_match_filter_init(cli, argc, argv, *filt);
+					else if (!strncmp("begin", argv[0], len) ||
+						!strncmp("between", argv[0], len))
+							rc = cli_range_filter_init(cli, argc, argv, *filt);
+					else if (!strncmp("count", argv[0], len))
+						rc = cli_count_filter_init(cli, argc, argv, *filt);
+					else
+					{
+						cli_error(cli, "Invalid filter \"%s\"", argv[0]);
+						rc = CLI_ERROR;
+					}
+
+					if (rc == CLI_OK)
+					{
+						filt = &(*filt)->next;
+					}
+					else
+					{
+					free_z(*filt);
+						*filt = 0;
+					}
+				}
+*/
+				if (rc == cliState.CLI_OK )
+				{
+					// 我们应该在这里转换mode
+					cli_set_configmode(mode, null, null);
+					System.out.println("we do command:" + c.command);
+					rc = c.callback.call(c.command, words,  start_word + 1, (c_words - start_word - 1)+wilds);
+				}
+/*
+				while (cli->common->filters)
+				{
+					struct cli_filter *filt = cli->common->filters;
+
+					// call one last time to clean up
+					filt->filter(cli, NULL, filt->data);
+					cli->common->filters = filt->next;
+					free(filt);
+				}
+*/
+				return rc;
+			}
+			else if( isSuperMode(mode.parent, c) )
+			{
+				// again set and again is submode of c, we discard it.
+				if( (again == null) || !isSuperMode(again.mode, c))
+					// command matched but from another mode,
+					// remember it if we fail to find correct command
+					again = c;
+			}
+	    }
+	    // drop out of config submode if we have matched command on MODE_CONFIG
+	   	if(again!=null && (mode.parent != null) && (mode.parent != MODE_EXEC) )
+		{
+			c = again;
+			return cli_find_command(mode.parent, c.children, c.callback, words, start_word + 1, filters,wilds, auto_hide_commands);
+	    }
+		cli_error("\r\n Invalid input '%s'", words.get(start_word));
+
+	    return cliState.CLI_ERROR_ARG;
+	}
+	private boolean strncasecmp(String a, String b, int len) {
+		boolean ret = (a.regionMatches(true, 0, b, 0, len));
+		System.out.println("cmp:" + a + " with:" + b + " len:" + len + " is:" + (ret ? " true" : " false"));
+		return !ret;
+	}
+	private boolean link_hide_command(hide_command hideCommand, cli_command command) {
+		return false;
+	}
 	private void cli_add_history(byte cmd[]) {
 		
 	}
-	
+	private boolean isSuperMode(cliMode mode, cli_command command) {
+		return false;
+	}
 	private long time() {
 		return System.currentTimeMillis() / 100000;
 	}
@@ -1073,7 +1410,9 @@ public class JCli implements Runnable {
 	private int cli_get_completions() {
 		return 0;
 	}
-	
+	private int get_unique_len(cli_command c1, cli_command c2) {
+		return Math.min(c1.command.length(), c2.command.length());
+	}
 	ByteBuffer buf; // = ByteBuffer.allocate(1024);
 	private int buflen = -1;
 	private byte cli_read() throws IOException {
@@ -1104,4 +1443,51 @@ public class JCli implements Runnable {
 		}
 		System.out.println("end of cli");
 	}
+
+
+
+	public cli_command cli_register_command(cli_command parent, String command,
+			CliCallback callback, int privilege, cliMode mode, String help)
+		{
+		    cli_command c, p;
+
+		    if (command == null) return null;
+		    c = new cli_command();
+		    
+		    c.callback = callback;
+		    c.next = null;
+			c.wilds_callback = null;
+			c.command = command;
+		    c.privilege = privilege;
+		    c.mode = mode;
+	    	c.help=help;
+
+	    	cli_command r = null;
+	    	if(parent == null)
+	    		if(common.commands == null)
+	    			common.commands = c;
+	    		else
+	    			r = common.commands;
+	    	else
+	    		if(parent.children == null)
+	    			parent.children = c;
+	    		else
+	    			r = parent.children;
+	    	
+	    		/*
+		    r = ( parent == null ) ? common.commands : parent.children;
+		
+			if (r==null)
+			{
+				r = c;
+			}
+			else
+			*/
+	    	if(r != null)
+			{
+				for (p = r; p!=null && p.next!=null; p = p.next);
+				if (p!=null) p.next = c;
+			}
+		    return c;
+		}
 }
