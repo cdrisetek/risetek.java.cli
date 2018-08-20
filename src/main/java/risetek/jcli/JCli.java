@@ -25,6 +25,9 @@ public class JCli implements Runnable {
 	
 	public JCli(SocketChannel socket) {
 		_socket = socket;
+		
+		cli_set_privilege(Cli_common.PRIVILEGE_UNPRIVILEGED);
+		cli_set_hostname("cli");
 	}
 
 	private boolean schedule() throws IOException {
@@ -116,7 +119,7 @@ public class JCli implements Runnable {
 	
 	enum selectReason {READ, TIMER}
 	enum cliState {CLI_OK, CLI_QUIT, CLI_ERROR, CLI_ERROR_ARG}
-	enum State { STATE_LOGIN, STATE_PASSWORD, STATE_NORMAL, STATE_ENABLE_PASSWORD, STATE_ENABLE }
+	public static enum State { STATE_LOGIN, STATE_PASSWORD, STATE_NORMAL, STATE_ENABLE_PASSWORD, STATE_ENABLE }
 	private int flags = 0;
 	private boolean showprompt = false;
 	private byte oldcmd[] = null;
@@ -126,7 +129,7 @@ public class JCli implements Runnable {
 	private int cursor = 0;
 	private confirmcallback cli_confirm_callback = null;
 	private confirmcontext cli_confirm_context = null;
-	private State state = State.STATE_NORMAL;
+	public State state = State.STATE_NORMAL;
 	private long idle_timeout = 0;
 	private long last_action = 0;
 	private int skip = 0;
@@ -141,6 +144,9 @@ public class JCli implements Runnable {
 	private boolean insertmode = false;
 	private String username = null;
 	private String password = null;
+	private String modestring = null;
+	private String promptchar = null;
+	
 	private synchronized cliState loop(selectReason reason) throws IOException {
 	    byte c = 0;
 	    int onces = 0;
@@ -939,7 +945,13 @@ public class JCli implements Runnable {
 	}
 	
 	private void show_prompt() throws IOException {
-		write("prompt:");
+		if (common.hostname!=null)
+			write(common.hostname);
+
+	    if (modestring!=null)
+	        write(modestring);
+
+	    write(promptchar);
 	}
 	
 	private void cli_error(String format, Object...args ) throws IOException{
@@ -947,8 +959,6 @@ public class JCli implements Runnable {
 			_helper_print.print(format, args);
 		else
 			write(String.format(format+"\r\n", args));
-		// System.out.println(String.format(fmt+"\r\n", objects));
-		
 	}
 	
 	private void close_monitor() {
@@ -963,7 +973,6 @@ public class JCli implements Runnable {
 	}
 	
 	private boolean isspace(byte c) {
-//		return c == ' ';
 		return c == (byte)32; // ' '
 	}
 
@@ -1029,7 +1038,6 @@ public class JCli implements Runnable {
 	                else if (!isspace(cmd[index]))
 	                    word_start = index;
 	            }
-
 	            index++;
 	        }
 	    }
@@ -1104,7 +1112,7 @@ public class JCli implements Runnable {
 	
 	private Cli_common common = Cli_common.getInstance();
 	
-	private int privilege = Cli_common.PRIVILEGE_PRIVILEGED;
+	public int privilege = Cli_common.PRIVILEGE_PRIVILEGED;
 	private cliState cli_find_command(cliMode mode, Cli_command commands, CliCallback havecallback,
 			List<String> words, int start_word, List<String> filters,int wilds, hide_command auto_hide_commands)
 					throws IOException {
@@ -1162,11 +1170,9 @@ public class JCli implements Runnable {
 //	    else if(words[start_word][strlen(words[start_word]) - 1] == '!')
 	    else if(words.get(start_word).endsWith("!"))
 	    {
-			//fix the '!' conf bug 20130220
 			if(mode == Cli_common.MODE_CONFIG)
 				return cliState.CLI_OK;
-			// TODO:!!!
-			//cli_set_configmode(mode->parent, null, null);
+			cli_set_configmode(mode.parent, null, null);
 			return cliState.CLI_OK;
 	    }
 
@@ -1358,7 +1364,6 @@ public class JCli implements Runnable {
 	}
 	private void cli_add_history(byte cmd[]) {
 		if(history[in_history] == null) {
-			System.out.println("TODO: add_history");
 			history[in_history] = cmd.clone();
 		}
 /*
@@ -1367,8 +1372,18 @@ public class JCli implements Runnable {
 			*/
 	}
 	private boolean isSuperMode(cliMode mode, Cli_command command) {
+		// TODO: 在cliMode类中去实现该功能
+		
+		while( mode!=null && (mode != Cli_common.MODE_EXEC))
+		{
+			if( mode == command.mode )
+				return true;
+
+			mode = mode.parent;
+		}
 		return false;
 	}
+	
 	private long time() {
 		return System.currentTimeMillis() / 100000;
 	}
@@ -1573,9 +1588,48 @@ public class JCli implements Runnable {
 	    location = cursor = 0;
 	}
 	
-	private void cli_set_configmode(cliMode mode, String a, String b) {
-		
+	interface Mode_change_callback{
+		void call(JCli cli);
 	}
+	private Mode_change_callback mode_change_callback = null;
+	public cliMode cli_set_configmode(cliMode mode, String config_desc, Mode_change_callback callback) {
+		cliMode old = mode;
+
+		if( mode == null )
+			return old;
+
+	    this.mode = mode;
+
+	    if (mode != old)
+	    {
+	        if(mode == Cli_common.MODE_EXEC)
+	        {
+	            // Not config mode
+	            cli_set_modestring(null);
+	        }
+//	        else if (config_desc && *config_desc)
+	        else if (mode.config_desc != null )
+	        {
+	            //char string[64];
+	            //snprintf(string, sizeof(string), "(config-%s)", mode->config_desc);
+	        	String string = String.format("(config-%s)", mode.config_desc);
+	            cli_set_modestring(string);
+	        }
+	        else
+	        {
+	            cli_set_modestring("(config)");
+	        }
+			if( mode_change_callback!=null && (mode_change_callback != callback))
+			{
+				mode_change_callback.call(this);
+			}
+
+			this.mode_change_callback = callback;
+
+	    }
+
+	    return old;	
+	    }
 	
 	IHelper_print _helper_print = null;
 	
@@ -1608,5 +1662,31 @@ public class JCli implements Runnable {
 	}
 
 
+	int cli_set_privilege(int priv)
+	{
+	    int old = privilege;
+	    privilege = priv;
+
+	    if (priv != old)
+	    {
+	        cli_set_promptchar(priv == Cli_common.PRIVILEGE_PRIVILEGED ? "# " : "> ");
+	    }
+
+	    return old;
+	}
+
+	void cli_set_promptchar(String promptchar) {
+	    this.promptchar = promptchar;
+	}
+
+	void cli_set_hostname(String hostname)
+	{
+		common.hostname = hostname;
+	}
+
+	void cli_set_modestring(String modestring)
+	{
+        this.modestring = modestring;
+	}
 
 }
