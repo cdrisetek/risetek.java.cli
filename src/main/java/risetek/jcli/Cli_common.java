@@ -25,7 +25,9 @@ public class Cli_common {
 			instance = new Cli_common();
 			Cli_command.cli_register_command(null, "history", cli_int_history, PRIVILEGE_UNPRIVILEGED, MODE_EXEC, "Display the session command history");		
 			Cli_command.cli_register_command(null, "help", cli_int_help, PRIVILEGE_UNPRIVILEGED, MODE_EXEC, "Display the help of commands");		
-		}
+			Cli_command.cli_register_command(null, "enable", cli_int_enable, PRIVILEGE_UNPRIVILEGED, MODE_EXEC, "Turn on privileged commands");
+			Cli_command.cli_register_command(null, "exit", cli_int_exit_exec, PRIVILEGE_PRIVILEGED, MODE_EXEC, "Exit from the EXEC");
+			Cli_command.cli_register_command(null, "exit", cli_int_exit_conf, PRIVILEGE_PRIVILEGED, MODE_CONFIG, "Exit from configure mode");		}
 		return instance;
 	}
 	
@@ -44,6 +46,34 @@ public class Cli_common {
 		@Override
 		public cliState call(JCli cli, String command, List<String> words, int start, int argc) throws IOException {
 			cli.print("do command:"+command + " start with:" + start + " argc:" + argc);
+			return cliState.CLI_OK;
+		}
+		
+	};
+
+	static CliCallback cli_int_enable = new CliCallback() {
+
+		@Override
+		public cliState call(JCli cli, String command, List<String> words, int start, int argc) throws IOException {
+			cli.print("do command:"+command);
+			return cliState.CLI_OK;
+		}
+		
+	};
+	static CliCallback cli_int_exit_exec = new CliCallback() {
+
+		@Override
+		public cliState call(JCli cli, String command, List<String> words, int start, int argc) throws IOException {
+			cli.print("do command:"+command);
+			return cliState.CLI_OK;
+		}
+		
+	};
+	static CliCallback cli_int_exit_conf = new CliCallback() {
+
+		@Override
+		public cliState call(JCli cli, String command, List<String> words, int start, int argc) throws IOException {
+			cli.print("do command:"+command);
 			return cliState.CLI_OK;
 		}
 		

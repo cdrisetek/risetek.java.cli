@@ -14,6 +14,7 @@ import java.util.TimerTask;
 import java.util.Vector;
 
 import risetek.jcli.Cli_common.cliMode;
+import risetek.jcli.JCli.confirmcallback.confirmcontext;
 
 public class JCli implements Runnable {
 	SocketChannel _socket;
@@ -24,10 +25,6 @@ public class JCli implements Runnable {
 	
 	public JCli(SocketChannel socket) {
 		_socket = socket;
-		
-		
-		//cli_register_command(null, "history", cli_int_history, PRIVILEGE_UNPRIVILEGED, Cli_common.MODE_EXEC, "Display the session command history");
-		//cli_register_command(null, "help", cli_int_help, PRIVILEGE_UNPRIVILEGED, Cli_common.MODE_EXEC, "Display the help of commands");		
 	}
 
 	private boolean schedule() throws IOException {
@@ -111,9 +108,9 @@ public class JCli implements Runnable {
 	}
 
 	interface confirmcallback {
-		
-	}
-	interface confirmcontext {
+		interface confirmcontext {
+			
+		}
 		
 	}
 	
@@ -137,8 +134,9 @@ public class JCli implements Runnable {
 	private byte esc;
 	private byte lastchar;
 	private int in_history;
-	private static int MAX_HISTORY = 100;
-	private static int COMMAND_BUFFER_SIZE = 1024;
+	private static int MAX_HISTORY = 10;
+	private byte[][] history = new byte[MAX_HISTORY][];
+	private static int COMMAND_BUFFER_SIZE = 256;
 	private int n;
 	private boolean insertmode = false;
 	private String username = null;
@@ -180,7 +178,6 @@ public class JCli implements Runnable {
 	    			else
 	    			{
 	    				Arrays.fill(cmd, (byte)0);
-	    				// memset(cli_state->cmd, 0, COMMAND_BUFFER_SIZE);
 	    				location = 0;
 	    				cursor = 0;
 	    			}
@@ -366,7 +363,7 @@ public class JCli implements Runnable {
 
 			if (c == CTRL('C'))
 			{
-				write("\0xa");
+				write(0x07); // "\a"
 				continue;
 			}
 
@@ -398,7 +395,7 @@ public class JCli implements Runnable {
 				{
 					if (location == 0 || cursor == 0)
 					{
-						write("\0xa");
+						write(0x07); // '\a'
 						continue;
 					}
 
@@ -522,90 +519,96 @@ public class JCli implements Runnable {
 			}
 
 			/* TAB completion */
-			/*
 			if (c == CTRL('I'))
 			{
-				char completions = new char[128];
-				int num_completions = 0;
+				//String[] completions = new String[128];
+				List<String> completions = null;
+				// int num_completions = 0;
 
 				if (state == State.STATE_LOGIN || state == State.STATE_PASSWORD || state == State.STATE_ENABLE_PASSWORD)
 					continue;
 
-				if (cursor != l) continue;
+				if (cursor != location) continue;
 
-				num_completions = cli_get_completions(cli, cmd, completions, 128);
-				if (num_completions == 0)
+				//num_completions = cli_get_completions(cmd, completions, 128);
+				completions = cli_get_completions(cmd, 128);
+				if (completions.size() == 0)
 				{
-					write("\0xa");
+					write(0x07); // "\a"
 				}
-				else if (num_completions == 1)
+				else if (completions.size() == 1)
 				{
 					// Single completion
-					for (; l > 0; l--, cursor--)
+					for (; location > 0; location--, cursor--)
 					{
-						if (cmd[l-1] == ' ' || cmd[l-1] == '|')
+						if (cmd[location-1] == ' ' || cmd[location-1] == '|')
 							break;
 						write("\b");
 					}
-					strcpy((cmd + l), completions[0]);
-					l += strlen(completions[0]);
-					cmd[l++] = ' ';
-					cursor = l;
-					write(completions[0]);
+					
+					//strcpy((cmd + l), completions[0]);
+					for(int index=0;index<completions.get(0).length();index++)
+						cmd[location+index]=(byte)completions.get(0).charAt(index);
+					
+					location += completions.get(0).length();
+					cmd[location++] = ' ';
+					cursor = location;
+					write(completions.get(0));
 					write(" ");
 				}
 				else if (lastchar == CTRL('I'))
 				{
 					// double tab
-					int dd = getsamecharlen(completions,num_completions);
+					int dd = getsamecharlen(completions);
 					int j;
 
-					for (j = 0;j < dd&&j < l; j ++)
+					for (j = 0;j < dd&&j < location; j ++)
 					{
-						if (cmd[l-1-j] == ' ' || cmd[l-1-j] == '|')
+						if (cmd[location-1-j] == ' ' || cmd[location-1-j] == '|')
 							break;
 					}
 
 					if(dd > j)
 					{
-							for (; l > 0; l--, cursor--)
+							for (; location > 0; location--, cursor--)
 							{
-								if (cmd[l-1] == ' ' || cmd[l-1] == '|')
+								if (cmd[location-1] == ' ' || cmd[location-1] == '|')
 									break;
-								write(cli->fd, "\b", 1);
+								write("\b");
 							}
-							strncpy((cmd + l), completions[0],dd);
-							l += dd;
-							cursor = l;
-							write(cli->fd, completions[0], dd);
+							//strncpy((cmd + l), completions[0],dd);
+							for(int index=0;index<dd;index++)
+								cmd[location+index]=(byte)completions.get(0).charAt(index);
+							location += dd;
+							cursor = location;
+							write(completions.get(0).getBytes(), 0, dd);
 					}
 					else
 					{
 							int i;
-							write(cli->fd, "\r\n", 2);
-							for (i = 0; i < num_completions; i++)
+							write("\r\n");
+							for (i = 0; i < completions.size(); i++)
 							{
-								write(cli->fd, completions[i], strlen(completions[i]));
+								write(completions.get(i));
 							if (i % 4 == 3)
 									write("\r\n");
 								else
 									write("     ");
 							}
 							if (i % 4 != 3) write("\r\n");
-								showprompt = 1;
+								showprompt = true;
 					}
 					}
 					else
 					{
 					// More than one completion
 					lastchar = c;
-					write("\0xa");
+					write(0x07);	// "\a"
 					}
 				continue;
 			}
-*/
+
 			/* history */
-			/*
 			if (c == CTRL('P') || c == CTRL('N'))
 			{
 				int history_found = 0;
@@ -620,7 +623,7 @@ public class JCli implements Runnable {
 					{
 						for (in_history = MAX_HISTORY-1; in_history >= 0; in_history--)
 						{
-							if (cli->history[in_history])
+							if (history[in_history]!=null)
 							{
 								history_found = 1;
 								break;
@@ -629,18 +632,18 @@ public class JCli implements Runnable {
 					}
 					else
 					{
-						if (cli->history[in_history]) history_found = 1;
+						if (history[in_history]!=null) history_found = 1;
 					}
 				}
 				else // Down
 				{
 					in_history++;
-					if (in_history >= MAX_HISTORY || !cli->history[in_history])
+					if (in_history >= MAX_HISTORY || history[in_history]==null)
 					{
 						int i = 0;
 						for (i = 0; i < MAX_HISTORY; i++)
 						{
-							if (cli->history[i])
+							if (history[i]!=null)
 							{
 								in_history = i;
 								history_found = 1;
@@ -650,22 +653,25 @@ public class JCli implements Runnable {
 					}
 					else
 					{
-						if (cli->history[in_history]) history_found = 1;
+						if (history[in_history]!=null) history_found = 1;
 					}
 				}
-				if (history_found && cli->history[in_history])
+				if (history_found!=0 && history[in_history]!=null)
 				{
 					// Show history item
-					cli_clear_line(cli->fd, cmd, l, cursor);
-					memset(cmd, 0, COMMAND_BUFFER_SIZE);
-					strncpy(cmd, cli->history[in_history], (COMMAND_BUFFER_SIZE-1));
-					l = cursor = strlen(cmd);
-					write(cli->fd, cmd, l);
+					cli_clear_line(cmd, location, cursor);
+					// memset(cmd, 0, COMMAND_BUFFER_SIZE);
+					Arrays.fill(cmd, (byte)0);
+//					strncpy(cmd, history[in_history], (COMMAND_BUFFER_SIZE-1));
+					int index;
+					for(index=0; index<(COMMAND_BUFFER_SIZE-1) && (history[in_history][index] != 0);index++)
+						cmd[index]=history[in_history][index];
+					location = cursor = index;
+					write(cmd, 0, location);
 				}
 
 				continue;
 			}
-*/
 			/* left/right cursor motion */
 			if (c == CTRL('B') || c == CTRL('F'))
 			{
@@ -737,7 +743,7 @@ public class JCli implements Runnable {
 				}
 				else
 				{
-					write("\0xa");
+					write(0x07); // "\a"
 					continue;
 				}
 			}
@@ -880,7 +886,7 @@ public class JCli implements Runnable {
 	    else
 	    {
 	        if (location == 0) continue;
-	        if (cmd[location - 1] != '?' && cmd.equals("history"))
+	        if (cmd[location - 1] != '?' && !cmd.equals("history"))
 	            cli_add_history(cmd);
 
 	        if (cli_run_command(cmd) == cliState.CLI_QUIT) {
@@ -957,7 +963,8 @@ public class JCli implements Runnable {
 	}
 	
 	private boolean isspace(byte c) {
-		return c == ' ';
+//		return c == ' ';
+		return c == (byte)32; // ' '
 	}
 
 	List<String> cli_parse_line(byte[] line)
@@ -983,9 +990,11 @@ public class JCli implements Runnable {
 	    // while (nwords < max_words - 1)
 	    while(true)
 	    {
+	    	// if (!*p || *p == inquote || (word_start && !inquote && (isspace(*p) || *p == '|')))
 	        if ((cmd[index] == 0) || cmd[index] == inquote || (word_start!=-1 && (inquote==0) && (isspace(cmd[index]) || cmd[index] == '|')))
 	        {
-	            if (cmd[word_start] != 0)
+
+	            if (word_start != -1 && cmd[word_start] != 0)
 	            {
 	                // int len = index - word_start;
 	                String word = new String(cmd, word_start, (index-word_start));
@@ -1348,7 +1357,14 @@ public class JCli implements Runnable {
 		return false;
 	}
 	private void cli_add_history(byte cmd[]) {
-		
+		if(history[in_history] == null) {
+			System.out.println("TODO: add_history");
+			history[in_history] = cmd.clone();
+		}
+/*
+		for(int index=0; index<cmd.length;index++)
+			history[in_history][index]=cmd[index];
+			*/
 	}
 	private boolean isSuperMode(cliMode mode, Cli_command command) {
 		return false;
@@ -1357,9 +1373,136 @@ public class JCli implements Runnable {
 		return System.currentTimeMillis() / 100000;
 	}
 	
-	private int cli_get_completions() {
-		return 0;
+	private List<String> cli_get_completions(byte[] command, int max_completions) {
+		
+		List<String> completions = new Vector<>();
+		
+		   Cli_command c;
+		   Cli_command n;
+		   Cli_command h;
+		    int num_words, i, k=0;
+		    //char *words[128] = {0};
+		    int filter = 0;
+
+		    hide_command	auto_hide_commands = null;
+
+		    if (command==null) return completions;
+		    // while (isspace(*command))		        command++;
+
+		    //num_words = cli_parse_line(command, words, sizeof(words)/sizeof(words[0]));
+		    List<String> words = cli_parse_line(command);
+		    /*
+		    if (!command[0] || command[strlen(command)-1] == ' ')
+		        num_words++;
+
+		    if (!num_words)
+		            return 0;
+*/
+		    for (i = 0; i < words.size(); i++)
+		    {
+		        if (words.get(i)!=null && words.get(i).charAt(0) == '|')
+		            filter = i;
+		    }
+/*
+		    if (filter!=0) // complete filters
+		    {
+		        int len = 0;
+
+				if (filter < words.size() - 2) // filter already completed
+		            return 0;
+
+				if (filter == words.size() - 2)
+		            len = words.get(num_words-1).length();
+
+		        for (i = 0; filter_cmds[i].cmd && k < max_completions; i++)
+		            if (!len || (len < strlen(filter_cmds[i].cmd)
+		                && !strncmp(filter_cmds[i].cmd, words[num_words - 1], len)))
+		                    completions[k++] = filter_cmds[i].cmd;
+
+		        completions[k] = NULL;
+		        return k;
+		    }
+*/
+		    h = common.commands;
+		    for (c = common.commands, i = 0; c!=null && i < words.size() && k < max_completions; c = n)
+		    {
+		        n = c.next;
+
+		        if (privilege < c.privilege)
+		            continue;
+
+		        if (c.mode != mode && c.mode != Cli_common.MODE_ANY)
+		            continue;
+
+				if ( (c.wilds_callback == null) && (words.get(i)!=null) && strncasecmp(c.command, words.get(i), words.get(i).length()))
+		            continue;
+
+		        if (i < words.size() - 1)
+		        {
+		        	// FIXME!! 在实践中发现，ip ipsec这样的命令会使得 unique_len 变长，使得 completions误会其后续命令。
+		        	int actlen = words.get(i).length();
+				    if (actlen < get_unique_len(h, c) && actlen != c.command.length())
+				    	continue;
+				    /*
+			     if(c.wilds_callback && (!(c.wilds_callback)(c, words.get(i)))&&c.next!=null)
+			     	{
+			     		continue;
+			     	}
+			     	*/
+		            n = c.children;
+		            h = n;
+		            i++;
+					// 如果是自动隐藏命令，而且已经使用过了，那么不能采用。
+					link_hide_command(auto_hide_commands, c);
+		            continue;
+		        }
+				// 如果是通配符命令，那么不能采用。
+				if( c.wilds_callback != null ) continue;
+
+				if( link_hide_command(auto_hide_commands, c) ) continue;
+
+				if( c.children==null && c.callback==null) continue;
+				
+		        //completions[k++] = c.command;
+		        completions.add(c.command);
+		    }
+
+//		    free_linked_hide_commands(auto_hide_commands);
+		    return completions;		
 	}
+	
+	private int getsamecharlen(List<String> data) {
+		int num = data.size();
+		if(num <1)
+		{
+			return 0;
+		}
+		else if(num == 1)
+		{
+			return data.get(0).length();
+		}
+		int len = 0;
+		char c;
+		int i;
+		while(true)
+		{
+			if(data.get(0).charAt(len) == '\0')
+			{
+				return len;
+			}
+			c = data.get(0).charAt(len);
+			for(i = 1;i < num;i++)
+			{
+				if(data.get(i).charAt(len) == '\0' ||data.get(i).charAt(len) != c)
+				{
+					return len;
+				}
+			}
+			len ++;
+		}
+		//return len;
+	}
+	
 	
 	public void print(String format, Object ...args) throws IOException {
 		write(String.format(format+"\r\n", args));
@@ -1417,8 +1560,17 @@ public class JCli implements Runnable {
 		return b;
 	}
 	
-	private void cli_clear_line(byte cmd[], int start, int end) {
-		
+	private void cli_clear_line(byte cmd[], int stard, int end) throws IOException {
+	    int i;
+	    if (cursor < location) for (i = 0; i < (location - cursor); i++) write(" ");
+	    for (i = 0; i < location; i++) cmd[i] = '\b';
+	    for (; i < location * 2; i++) cmd[i] = ' ';
+	    for (; i < location * 3; i++) cmd[i] = '\b';
+	    write(cmd, 0, i);
+	    //memset(cmd, 0, i);
+	    for(int index=0; index<i;index++)
+	    	cmd[index] = 0;
+	    location = cursor = 0;
 	}
 	
 	private void cli_set_configmode(cliMode mode, String a, String b) {
