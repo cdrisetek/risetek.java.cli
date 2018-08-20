@@ -8,7 +8,10 @@ public class Cli_command {
 	Cli_command next;
 	int push_command;
 
-	int unique_len[][] = new int[10][2];
+	int unique_len[][] = new int[2][2]; // MAX_CLI_PRIVILEGE = 2
+	
+    int	auto_hide;
+	
 	
 	String command;
 	Wilds_callback wilds_callback;
@@ -16,6 +19,9 @@ public class Cli_command {
 	int privilege;
 	public cliMode mode;
 	String help;
+	
+    long range_lower;
+    long range_uper;
 	
 	public Cli_command() {
 

@@ -945,8 +945,8 @@ public class JCli implements Runnable {
 	}
 	
 	private void show_prompt() throws IOException {
-		if (common.hostname!=null)
-			write(common.hostname);
+		if (Cli_common.hostname!=null)
+			write(Cli_common.hostname);
 
 	    if (modestring!=null)
 	        write(modestring);
@@ -1355,9 +1355,7 @@ public class JCli implements Runnable {
 	    return cliState.CLI_ERROR_ARG;
 	}
 	private boolean strncasecmp(String a, String b, int len) {
-		boolean ret = (a.regionMatches(true, 0, b, 0, len));
-		// System.out.println("cmp:" + a + " with:" + b + " len:" + len + " is:" + (ret ? " true" : " false"));
-		return !ret;
+		return !(a.regionMatches(true, 0, b, 0, len));
 	}
 	private boolean link_hide_command(hide_command hideCommand, Cli_command command) {
 		return false;
@@ -1681,7 +1679,7 @@ public class JCli implements Runnable {
 
 	void cli_set_hostname(String hostname)
 	{
-		common.hostname = hostname;
+		Cli_common.hostname = hostname;
 	}
 
 	void cli_set_modestring(String modestring)
