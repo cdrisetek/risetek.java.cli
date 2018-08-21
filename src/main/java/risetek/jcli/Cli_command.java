@@ -33,7 +33,8 @@ public class Cli_command {
 			CliCallback callback, int privilege, cliMode mode, String help)
 		{
 		    Cli_command c, p;
-
+		    if(common == null)
+		    	common = Cli_common.getInstance();
 		    if (command == null) return null;
 		    c = new Cli_command();
 		    

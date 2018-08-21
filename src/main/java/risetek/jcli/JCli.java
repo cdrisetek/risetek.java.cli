@@ -960,10 +960,7 @@ public class JCli implements Runnable {
 	}
 	
 	private void cli_error(String format, Object...args ) throws IOException{
-		if(_helper_print != null)
-			_helper_print.print(format, args);
-		else
-			write(String.format(format+"\r\n", args));
+		_print(PRINT_PLAIN, format, args);
 	}
 	
 	private void close_monitor() {
@@ -1106,8 +1103,8 @@ public class JCli implements Runnable {
 		int call(Cli_command command, String word);
 	}
 
-	interface IHelper_print {
-		void print(String format, Object ...args) throws IOException;
+	public interface IHelper_print {
+		void print(String command) throws IOException;
 	}
 	
 	// enum Privilege {}
@@ -1570,17 +1567,15 @@ public class JCli implements Runnable {
 		*/
 	    
 	    // p = buffer;
-	    int filterIndex;
-	    String[] tofilter;
+	    int filterIndex = 0;
+	    String[] tofilter = sb.toString().split("\n");
 	    do
 	    {
 	        //char *next = strchr(p, '\n');
 			cli_filter f = (print_mode & PRINT_FILTERED)!=0 ? common.filters : null;
 	        boolean print = true;
-	        filterIndex = 0;
-	        tofilter = sb.toString().split("\n");
 	        //if (next)	            *next++ = 0;
-	        if(tofilter.length > 0)
+	        if(tofilter.length > filterIndex)
 	        	filterIndex++;
 	        else if ((print_mode & PRINT_BUFFERED) != 0)
 	            break;
@@ -1737,12 +1732,12 @@ public class JCli implements Runnable {
 	IHelper_print helper_print = new IHelper_print() {
 
 		@Override
-		public void print(String format, Object... args) throws IOException {
-			write(String.format(format+"\r\n", args));
+		public void print(String command) throws IOException {
+			write(command);
 		}
 	};
 	
-	private void cli_print_callback(IHelper_print helper_print) {
+	public void cli_print_callback(IHelper_print helper_print) {
 		_helper_print = helper_print;
 	}
 	

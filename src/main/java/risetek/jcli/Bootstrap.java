@@ -6,6 +6,7 @@ public class Bootstrap {
 
 	public static void main(String[] args) {
 		System.out.println("hello risetek jcli");
+		new ParamSaver();
 		try {
 			new CliSocketChannel().startServer();
 		} catch (IOException e) {
