@@ -15,22 +15,44 @@ public class Cli_common {
 	public static cliMode MODE_CONFIG = new cliMode(MODE_EXEC,null);
 	
 	public static String hostname = null;
-	private static String enable_password = null;
+	public static String enable_password = null;
 	
 	interface Enable_callback {
 		
 	}
 	
+	interface Auth_callback {}
+	Auth_callback auth_callback = null;
+	
+	class unp {}
+	unp users = null;
+	
 	public static Enable_callback enable_callback = null;
+	
+	interface Regular_callback{
+		cliState call(JCli cli);
+	}
+	Regular_callback regular_callback;
+	
 	
 	Cli_command commands;
 	cli_filter	filters;
 	private Cli_common() {
 	}
 
+	public static Cli_command show_cli;
+	public static Cli_command debug_cli;
+	public static Cli_command no_debug_cli;
+	
 	public static Cli_common getInstance() {
 		if(instance == null) {
 			instance = new Cli_common();
+			
+		    show_cli = Cli_command.cli_register_command(null, "show", null,  PRIVILEGE_UNPRIVILEGED, MODE_EXEC, "show information");
+		    debug_cli = Cli_command.cli_register_command(null, "debug", null,  PRIVILEGE_PRIVILEGED, MODE_EXEC, "Debugging functions");
+		    no_debug_cli = Cli_command.cli_register_command(null, "nodebug", null,  PRIVILEGE_PRIVILEGED, MODE_EXEC, "Disable debugging functions");
+
+			
 			Cli_command.cli_register_command(null, "history", cli_int_history, PRIVILEGE_UNPRIVILEGED, MODE_EXEC, "Display the session command history");		
 			Cli_command.cli_register_command(null, "help", cli_int_help, PRIVILEGE_UNPRIVILEGED, MODE_EXEC, "Display the help of commands");		
 			Cli_command.cli_register_command(null, "enable", cli_int_enable, PRIVILEGE_UNPRIVILEGED, MODE_EXEC, "Turn on privileged commands");

@@ -29,10 +29,12 @@ public class JCli implements Runnable {
 		cli_set_privilege(Cli_common.PRIVILEGE_UNPRIVILEGED);
 		cli_set_hostname("cli");
 	}
-
+	private boolean quit = false;
+	private SelectionKey selectKey;
 	private boolean schedule() throws IOException {
 		write(negotiate);
 		Selector sel = Selector.open();
+		selectKey = _socket.register(sel, SelectionKey.OP_READ);
 		// RUN first onces
 
 		Timer timer = new Timer();
@@ -40,40 +42,33 @@ public class JCli implements Runnable {
 
 			@Override
 			public void run() {
-				try {
-					// System.out.println("timer");
-					loop(selectReason.TIMER);
-				} catch (IOException e) {
-					e.printStackTrace();
-				}
+				selectKey.selector().wakeup();
 			}
 		}, 0, 1000);
 
-		SelectionKey selectKey = _socket.register(sel, SelectionKey.OP_READ);
-		boolean quit = false;
-		while (!quit && selectKey.selector().select() > 0) {
+		while (!quit && selectKey.selector().select() >= 0) {
 
 			Set<SelectionKey> readyKeys = sel.selectedKeys();
+			if(readyKeys.size() == 0) {
+				if(cliState.CLI_QUIT == loop(selectReason.TIMER) )
+					quit = true;
+			}
+			
 			Iterator<SelectionKey> it = readyKeys.iterator();
-
 			while (it.hasNext()) {
 				SelectionKey key = (SelectionKey) it.next();
 				it.remove();
 
 				if (key.isReadable()) {
-					if(cliState.CLI_QUIT == loop(selectReason.READ) ) {
-						timer.cancel();
-						key.cancel();
-						sel.close();
-						_socket.close();
-						return false;
-					}
+					if(cliState.CLI_QUIT == loop(selectReason.READ) )
+						quit = true;
 				}
 			}
 		}
 
 		timer.cancel();
 		sel.close();
+		_socket.close();
 		return false;
 	}
 
@@ -130,8 +125,8 @@ public class JCli implements Runnable {
 	private confirmcallback cli_confirm_callback = null;
 	private confirmcontext cli_confirm_context = null;
 	public State state = State.STATE_NORMAL;
-	private long idle_timeout = 0;
-	private long last_action = 0;
+	private long idle_timeout = 600;
+	private long last_action = time();
 	private int skip = 0;
 	private byte is_telnet_option = 0;
 	private byte esc;
@@ -230,26 +225,37 @@ public class JCli implements Runnable {
 	    	if (reason == selectReason.TIMER )
 	    	{
 				/* timeout every second */
-	    		/*
-				if (cli->common->regular_callback && cli->common->regular_callback(cli) != CLI_OK)
+				if (common.regular_callback!=null && common.regular_callback.call(this) != cliState.CLI_OK)
 				{
-	    			strncpy(cmd, "quit", (COMMAND_BUFFER_SIZE-1));
+	    			// strncpy(cmd, "quit", (COMMAND_BUFFER_SIZE-1));
+					cmd[0] = 'q';
+					cmd[1] = 'u';
+					cmd[2] = 'i';
+					cmd[3] = 't';
+					location = cursor = 4;// cmd.length();
 					break;
 				}
-*/
-				// ��ʱ����£���ֹ����Ự
-	    		/*
+
+/*	    		
 				if(
 				(0 != idle_timeout)
-				&& ((((cli->common->users) || (cli->common->auth_callback)) && (state >= State.STATE_NORMAL))
-				|| (((cli->common->enable_password) || (cli->common->enable_callback)) && (state >= State.STATE_ENABLE)))
+				&& ((((common.users!=null) || (common.auth_callback!=null)) && (state.compareTo(State.STATE_NORMAL)>=0))
+				|| (((Cli_common.enable_password!=null) || (Cli_common.enable_callback!=null)) && (state.compareTo(State.STATE_ENABLE)>=0)))
+				&& ((time() - last_action) >= idle_timeout) )
+*/
+				if(
+				(0 != idle_timeout)
 				&& ((time() - last_action) >= idle_timeout) )
 				{
-					strcpy(cmd, "quit");
-					l = cursor = cmd.length();
+					//strcpy(cmd, "quit");
+					cmd[0] = 'q';
+					cmd[1] = 'u';
+					cmd[2] = 'i';
+					cmd[3] = 't';
+					location = cursor = 4;// cmd.length();
 					break;
 				}
-				*/
+
 	    		return cliState.CLI_OK;
 	    	}
 
@@ -1383,7 +1389,7 @@ public class JCli implements Runnable {
 	}
 	
 	private long time() {
-		return System.currentTimeMillis() / 100000;
+		return System.currentTimeMillis() / 1000;
 	}
 	
 	private List<String> cli_get_completions(byte[] command, int max_completions) {
