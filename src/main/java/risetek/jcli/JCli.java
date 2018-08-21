@@ -14,10 +14,13 @@ import java.util.TimerTask;
 import java.util.Vector;
 
 import risetek.jcli.Cli_common.cliMode;
+import risetek.jcli.Cli_common.unp;
 import risetek.jcli.JCli.confirmcallback.confirmcontext;
 
 public class JCli implements Runnable {
 	SocketChannel _socket;
+	String ENABLE_KEY = "enable";
+	
 	byte negotiate[] = {(byte)0xFF,(byte)0xFB,(byte)0x03,(byte)0xFF,(byte)0xFB,(byte)0x01,
 			(byte)0xFF,(byte)0xFD,(byte)0x03,(byte)0xFF,(byte)0xFD,(byte)0x01};
 
@@ -68,7 +71,6 @@ public class JCli implements Runnable {
 
 		timer.cancel();
 		sel.close();
-		_socket.close();
 		return false;
 	}
 
@@ -822,18 +824,26 @@ public class JCli implements Runnable {
 	        free_z(cli_state->password);
 	        if (!(cli_state->password = strdup(cmd)))
 	            return cliState.CLI_ERROR;
+*/
+	        password = new String(cmd);
+/*
 		    if (cli->common->auth_callback)
 	        {
 				if (cli->common->auth_callback(cli_state->username, cli_state->password) == CLI_OK)
 	                allowed++;
 	        }
+*/
+	        if(common.auth_callback != null) {
+	        	if(common.auth_callback.call(username, password) == cliState.CLI_OK)
+	        		allowed++;
+	        }
 
-	        if (!allowed)
+	        if (allowed==0)
 	        {
-	            struct unp *u;
-				for (u = cli->common->users; u; u = u->next)
+	            unp u;
+				for (u = common.users; u!=null; u = u.next)
 	            {
-	                if (!strcmp(u->username, cli_state->username) && pass_matches(u->password, cli_state->password, cli_state->username))
+	                if (u.username.equals(username) && pass_matches(u.password, password, username))
 	                {
 	                    allowed++;
 	                    break;
@@ -841,7 +851,8 @@ public class JCli implements Runnable {
 	            }
 	        }
 
-	        if (allowed)
+
+	        if (allowed>0)
 	        {
 	            cli_error(" ");
 	            state = State.STATE_NORMAL;
@@ -849,43 +860,40 @@ public class JCli implements Runnable {
 	        else
 	        {
 	            cli_error("\n\nAccess denied");
-	            free_z(cli_state->username);
-	            free_z(cli_state->password);
+	            //free_z(cli_state->username);
+	            //free_z(cli_state->password);
 	            state = State.STATE_LOGIN;
 	        }
 
-	        showprompt = 1;
-	        */
+	        showprompt = true;
 	    }
 	    else if (state == State.STATE_ENABLE_PASSWORD)
 	    {
-	    	/*
 	        int allowed = 0;
-			if (cli->common->enable_password)
+			if (Cli_common.enable_password!=null)
 	        {
 	            // check stored static enable password
-				if (pass_matches(cli->common->enable_password, cmd, ENABLE_KEY))
+				if (pass_matches(Cli_common.enable_password, new String(cmd), ENABLE_KEY))
 	                allowed++;
 	        }
 
-			if (!allowed && cli->common->enable_callback)
+			if (allowed==0 && common.enable_callback!=null)
 	        {
 	            // check callback
-				if (cli->common->enable_callback(cmd))
+				if (Cli_common.enable_callback.call(cmd))
 	                allowed++;
 	        }
 
-	        if (allowed)
+	        if (allowed>0)
 	        {
 	            state = State.STATE_ENABLE;
-	            cli_set_privilege(cli, Cli_common.PRIVILEGE_PRIVILEGED);
+	            cli_set_privilege(Cli_common.PRIVILEGE_PRIVILEGED);
 	        }
 	        else
 	        {
 	            cli_error("\n\nAccess denied");
 	            state = State.STATE_NORMAL;
 	        }
-	        */
 	    }
 	    else
 	    {
@@ -915,11 +923,10 @@ public class JCli implements Runnable {
 		pevent_unregister(&cli->read);
 		pevent_unregister(&cli->checker);
 	     */
-		// ����cli_let�ص�����, ��֪��cli�رգ�������������
-		/*
-		if( cli->cli_confirm_callback )
-			(*cli->cli_confirm_callback)(cli, cli->cli_confirm_context, 0, 1);
-*/
+
+		if( cli_confirm_callback!=null )
+			cli_confirm_callback.call(this, cli_confirm_context, (byte)0, 1);
+
 		close_monitor();
 /*
 		fflush(cli->client);
@@ -935,10 +942,10 @@ public class JCli implements Runnable {
 		free_z(cli->promptchar);
 		free_z(cli->modestring);
 		free_z(cli->domain);
-
-		// close file handler and clean up cli.
-		(*quit_handler)(cli);
 */
+		// close file handler and clean up cli.
+		// quit_handler(this);
+
 		return cliState.CLI_QUIT;
 	}
 	
@@ -1783,4 +1790,7 @@ public class JCli implements Runnable {
         this.modestring = modestring;
 	}
 
+	private boolean pass_matches(String upassword, String password, String username) {
+		return true;
+	}
 }

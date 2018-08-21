@@ -18,13 +18,19 @@ public class Cli_common {
 	public static String enable_password = null;
 	
 	interface Enable_callback {
-		
+		boolean call(byte[] command);
 	}
 	
-	interface Auth_callback {}
+	interface Auth_callback {
+		cliState call(String username, String password);
+	}
 	Auth_callback auth_callback = null;
 	
-	class unp {}
+	class unp {
+		String username;
+		String password;
+		unp next;
+	}
 	unp users = null;
 	
 	public static Enable_callback enable_callback = null;
