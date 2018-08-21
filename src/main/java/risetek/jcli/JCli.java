@@ -106,6 +106,7 @@ public class JCli implements Runnable {
 	}
 
 	interface confirmcallback {
+		cliState call(JCli cli, confirmcontext argv, byte c, int closed);
 		interface confirmcontext {
 			
 		}
@@ -236,15 +237,10 @@ public class JCli implements Runnable {
 					break;
 				}
 
-/*	    		
 				if(
 				(0 != idle_timeout)
 				&& ((((common.users!=null) || (common.auth_callback!=null)) && (state.compareTo(State.STATE_NORMAL)>=0))
 				|| (((Cli_common.enable_password!=null) || (Cli_common.enable_callback!=null)) && (state.compareTo(State.STATE_ENABLE)>=0)))
-				&& ((time() - last_action) >= idle_timeout) )
-*/
-				if(
-				(0 != idle_timeout)
 				&& ((time() - last_action) >= idle_timeout) )
 				{
 					//strcpy(cmd, "quit");
@@ -283,18 +279,14 @@ public class JCli implements Runnable {
 				continue;
 			}
 
-			// BY ycwang, ���cli_let��Ҫ���������ַ�������'Y/y', Ctrl-C�ȣ���ô�������䴦��
-			// ���handler��Ϊ������ϣ���ô�����ͷ������������
-			/*
 			if( null != cli_confirm_callback ) {
-				if(CLI_OK == (*cli->cli_confirm_callback)(cli, cli->cli_confirm_context, c, 0)) {
+				if(cliState.CLI_OK == cli_confirm_callback.call(this, cli_confirm_context, c, 0)) {
 					cli_confirm_callback = null;
 					cli_confirm_context = null;
 					break;
 				}
 				continue;
 			}
-			*/
 
 			if (c == -1 && 0 == is_telnet_option)
 			{
@@ -1112,8 +1104,14 @@ public class JCli implements Runnable {
 	}
 	
 	// enum Privilege {}
+	interface Filter {
+	    cliState filter(JCli cli, String string, Object data);
+	}
+
 	public class cli_filter {
-		
+		Filter call;
+	    Object data;
+	    cli_filter next;
 	}
 	
 	private Cli_common common = Cli_common.getInstance();
@@ -1524,9 +1522,101 @@ public class JCli implements Runnable {
 	
 	
 	public void print(String format, Object ...args) throws IOException {
-		write(String.format(format+"\r\n", args));
+		//write(String.format(format+"\r\n", args));
+		_print(PRINT_PLAIN, format, args);
 	}
 
+	interface Print_callback {
+		void print(String message);
+	}
+	Print_callback print_callback = null;
+	private StringBuffer sb;
+	int PRINT_PLAIN = 0;
+	int PRINT_FILTERED = 1 << 0;
+	int PRINT_BUFFERED = 1 << 1;
+	private void _print(int print_mode, String format, Object ...ap) throws IOException {
+		/*
+	    char *buffer;
+	    int size, len;
+	    char *p;
+	    int n;
+
+	    buffer = cli->buffer;
+	    size = cli->buf_size;
+	    len = strlen(buffer);
+		*/
+	    if(sb==null)
+	    	sb = new StringBuffer();
+	    sb.append(String.format(format, ap));
+	    /*
+	    while ((n = vsnprintf(buffer+len, size-len, format, ap)) >= size-len)
+	    {
+	        if (!(buffer = realloc(buffer, size += 1024)))
+	            return;
+
+	        cli->buffer = buffer;
+	        cli->buf_size = size;
+	    }
+
+	    if (n < 0) // vaprintf failed
+	        return;
+		*/
+	    
+	    // p = buffer;
+	    int filterIndex;
+	    String[] tofilter;
+	    do
+	    {
+	        //char *next = strchr(p, '\n');
+			cli_filter f = (print_mode & PRINT_FILTERED)!=0 ? common.filters : null;
+	        boolean print = true;
+	        filterIndex = 0;
+	        tofilter = sb.toString().split("\n");
+	        //if (next)	            *next++ = 0;
+	        if(tofilter.length > 0)
+	        	filterIndex++;
+	        else if ((print_mode & PRINT_BUFFERED) != 0)
+	            break;
+
+	        while (print && f!=null)
+	        {
+	            print = (f.call.filter(this, tofilter[filterIndex-1], f.data) == cliState.CLI_OK);
+	            f = f.next;
+	        }
+	        if (print)
+	        {
+	            if (print_callback!=null)
+	                print_callback.print(tofilter[filterIndex-1]);
+	            else {
+	                //fprintf(cli->client, "%s\r\n", p);
+	                //fflush(cli->client);
+	            	write(String.format("%s\r\n", tofilter[filterIndex-1]));
+	            }
+	        }
+
+	        // p = next;
+	    } while (filterIndex < tofilter.length);
+/*
+	    if (p && *p)
+	    {
+	        if (p != buffer)
+	    	memmove(buffer, p, strlen(p));
+	    }
+	    else *buffer = 0;
+*/
+	    if(filterIndex < tofilter.length) {
+	    	if(filterIndex != 1) {
+	    		sb = new StringBuffer();
+	    		sb.append(tofilter[filterIndex-1]);
+	    		do {
+	    			sb.append("\n");
+	    			sb.append(tofilter[filterIndex++]);
+	    		} while(filterIndex < tofilter.length);
+	    	}
+	    } else
+	    	sb = null;
+	}
+	
 	private int get_unique_len(Cli_command head, Cli_command c) {
 			if ((c.mode != Cli_common.MODE_ANY && c.mode != mode) || c.privilege > privilege)
 			{
