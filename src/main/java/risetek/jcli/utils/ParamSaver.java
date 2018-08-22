@@ -1,8 +1,12 @@
-package risetek.jcli;
+package risetek.jcli.utils;
 
 import java.io.IOException;
 import java.util.List;
 
+import risetek.jcli.CliCallback;
+import risetek.jcli.Cli_command;
+import risetek.jcli.Cli_common;
+import risetek.jcli.JCli;
 import risetek.jcli.JCli.IHelper_print;
 import risetek.jcli.JCli.cliState;
 

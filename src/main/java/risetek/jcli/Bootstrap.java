@@ -2,6 +2,9 @@ package risetek.jcli;
 
 import java.io.IOException;
 
+import risetek.jcli.ext.Syscast;
+import risetek.jcli.utils.ParamSaver;
+
 public class Bootstrap {
 
 	public static void main(String[] args) {
