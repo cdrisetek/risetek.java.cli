@@ -17,7 +17,7 @@ import risetek.jcli.Cli_common.cliMode;
 import risetek.jcli.Cli_common.unp;
 import risetek.jcli.JCli.confirmcallback.confirmcontext;
 
-public class JCli implements Runnable {
+public class JCli implements Runnable, ICli {
 	SocketChannel _socket;
 	String ENABLE_KEY = "enable";
 	
@@ -29,7 +29,7 @@ public class JCli implements Runnable {
 	public JCli(SocketChannel socket) {
 		_socket = socket;
 		
-		cli_set_privilege(Cli_common.PRIVILEGE_UNPRIVILEGED);
+		cli_set_privilege(PRIVILEGE_UNPRIVILEGED);
 		cli_set_hostname("cli");
 	}
 	private boolean quit = false;
@@ -116,7 +116,7 @@ public class JCli implements Runnable {
 	}
 	
 	enum selectReason {READ, TIMER}
-	enum cliState {CLI_OK, CLI_QUIT, CLI_ERROR, CLI_ERROR_ARG}
+	public enum cliState {CLI_OK, CLI_QUIT, CLI_ERROR, CLI_ERROR_ARG}
 	public static enum State { STATE_LOGIN, STATE_PASSWORD, STATE_NORMAL, STATE_ENABLE_PASSWORD, STATE_ENABLE }
 	private int flags = 0;
 	private boolean showprompt = false;
@@ -887,7 +887,7 @@ public class JCli implements Runnable {
 	        if (allowed>0)
 	        {
 	            state = State.STATE_ENABLE;
-	            cli_set_privilege(Cli_common.PRIVILEGE_PRIVILEGED);
+	            cli_set_privilege(PRIVILEGE_PRIVILEGED);
 	        }
 	        else
 	        {
@@ -1120,7 +1120,7 @@ public class JCli implements Runnable {
 	
 	private Cli_common common = Cli_common.getInstance();
 	
-	public int privilege = Cli_common.PRIVILEGE_PRIVILEGED;
+	public int privilege = PRIVILEGE_PRIVILEGED;
 	private cliState cli_find_command(cliMode mode, Cli_command commands, CliCallback havecallback,
 			List<String> words, int start_word, List<String> filters,int wilds, hide_command auto_hide_commands)
 					throws IOException {
@@ -1765,7 +1765,7 @@ public class JCli implements Runnable {
 
 	    if (priv != old)
 	    {
-	        cli_set_promptchar(priv == Cli_common.PRIVILEGE_PRIVILEGED ? "# " : "> ");
+	        cli_set_promptchar(priv == PRIVILEGE_PRIVILEGED ? "# " : "> ");
 	    }
 
 	    return old;

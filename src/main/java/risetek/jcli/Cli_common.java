@@ -6,10 +6,8 @@ import java.util.List;
 import risetek.jcli.JCli.cliState;
 import risetek.jcli.JCli.cli_filter;
 
-public class Cli_common {
+public class Cli_common implements ICli {
 	private static Cli_common instance = null;
-	public static int PRIVILEGE_UNPRIVILEGED = 0; 
-	public static int PRIVILEGE_PRIVILEGED = 1; 
 	public static cliMode MODE_ANY = new cliMode(null, null);
 	public static cliMode MODE_EXEC = new cliMode(null, null);
 	public static cliMode MODE_CONFIG = new cliMode(MODE_EXEC,null);
