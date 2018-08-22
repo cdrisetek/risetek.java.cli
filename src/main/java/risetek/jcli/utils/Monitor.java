@@ -12,7 +12,7 @@ import risetek.jcli.JCli.cliState;
 
 public class Monitor implements ICli {
 	public Monitor() {
-		Cli_command temp = Cli_command.cli_register_command(Cli_common.debug_cli, "terminal", null,  PRIVILEGE_PRIVILEGED, Cli_common.MODE_EXEC, "Set terminal line parameters");
+		Cli_command temp = Cli_command.cli_register_command(null, "terminal", null,  PRIVILEGE_PRIVILEGED, Cli_common.MODE_EXEC, "Set terminal line parameters");
 		Cli_command.cli_register_command(temp, "monitor", cmd_terminal_monitor, PRIVILEGE_PRIVILEGED, Cli_common.MODE_EXEC, "Copy debug output to the current terminal line");
 
 		temp = Cli_command.cli_register_command(temp, "no", null, PRIVILEGE_PRIVILEGED, Cli_common.MODE_EXEC, " Negate a command or set its defaults");
