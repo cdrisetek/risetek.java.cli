@@ -14,6 +14,8 @@ import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
+import risetek.jcli.Cli_common;
+
 public class XMLParser {
 	private final DocumentBuilderFactory factory;
 	private DocumentBuilder builder = null;
@@ -34,7 +36,7 @@ public class XMLParser {
 			NamedNodeMap map = node.getAttributes();
 			for(int n=0;n<map.getLength();n++) {
 				Node attr = map.item(n);
-				System.out.println(attr.getNodeName() + " value is: " + attr.getNodeValue());
+				Cli_common.Debug(1, attr.getNodeName() + " value is: " + attr.getNodeValue());
 			}
 		}
     }

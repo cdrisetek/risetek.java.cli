@@ -148,8 +148,8 @@ public class JCli implements Runnable, ICli {
 	private byte esc;
 	private byte lastchar;
 	private int in_history;
-	private static int MAX_HISTORY = 10;
-	private byte[][] history = new byte[MAX_HISTORY][];
+	public static int MAX_HISTORY = 10;
+	public byte[][] history = new byte[MAX_HISTORY][];
 	private static int COMMAND_BUFFER_SIZE = 256;
 	private int n;
 	private boolean insertmode = false;
@@ -976,6 +976,10 @@ public class JCli implements Runnable, ICli {
 		_print(PRINT_PLAIN, format, args);
 	}
 	
+	public void error(String format, Object...args ) throws IOException{
+		_print(PRINT_PLAIN, format, args);
+	}
+	
 	private void close_monitor() {
 		System.out.println("TODO: close_monitor");
 		common.RemoveCli(this);
@@ -1380,14 +1384,31 @@ public class JCli implements Runnable, ICli {
 	private boolean link_hide_command(hide_command hideCommand, Cli_command command) {
 		return false;
 	}
-	private void cli_add_history(byte cmd[]) {
+	private cliState cli_add_history(byte cmd[]) {
+/*
 		if(history[in_history] == null) {
 			history[in_history] = cmd.clone();
 		}
-/*
-		for(int index=0; index<cmd.length;index++)
-			history[in_history][index]=cmd[index];
-			*/
+*/
+	    int i;
+	    for (i = 0; i < MAX_HISTORY; i++)
+	    {
+	        if (history[i]==null)
+	        {
+	            if (i == 0 || !Arrays.equals(history[i-1],cmd)) {
+	            	history[i] = cmd.clone();
+	            }
+	            return cliState.CLI_OK;
+	        }
+	    }
+	    // No space found, drop one off the beginning of the list、
+	    if(Arrays.equals(history[MAX_HISTORY-1],cmd))
+	    	return cliState.CLI_ERROR;
+	    history[0] = null;
+	    for (i = 0; i < MAX_HISTORY-1; i++)
+	        history[i] = history[i+1];
+	    history[MAX_HISTORY - 1] = cmd.clone();
+	    return cliState.CLI_OK;
 	}
 	private boolean isSuperMode(cliMode mode, Cli_command command) {
 		// TODO: 在cliMode类中去实现该功能

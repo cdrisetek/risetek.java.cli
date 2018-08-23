@@ -166,7 +166,13 @@ public class Cli_common extends Thread implements ICli {
 
 		@Override
 		public cliState call(JCli cli, String command, List<String> words, int start, int argc) throws IOException {
-			cli.print("do command:" + command);
+		    cli.error("\nCommand history:");
+		    for (int i = 0; i < JCli.MAX_HISTORY; i++)
+		    {
+		        if (cli.history[i] != null)
+		            cli.error("%3d. %s", i, cli.history[i]);
+		    }
+
 			return cliState.CLI_OK;
 		}
 
@@ -186,8 +192,6 @@ public class Cli_common extends Thread implements ICli {
 
 		@Override
 		public cliState call(JCli cli, String command, List<String> words, int start, int argc) throws IOException {
-			cli.print("do command:" + command);
-
 			if (cli.privilege == PRIVILEGE_PRIVILEGED)
 				return cliState.CLI_OK;
 

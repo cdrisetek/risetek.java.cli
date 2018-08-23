@@ -73,8 +73,8 @@ public class Syscast extends Thread {
 			dgSocket.receive(packet);
 
 			String str = new String(packet.getData(), 0, packet.getLength());
-			System.out.println("Packet from: " + packet.getAddress() + " Size:" + str.length());
-			System.out.println(str);
+			Cli_common.Debug(1, "Packet from: " + packet.getAddress() + " Size:" + str.length());
+			Cli_common.Debug(1, str);
 
 			try {
 				parser.parser(str);
