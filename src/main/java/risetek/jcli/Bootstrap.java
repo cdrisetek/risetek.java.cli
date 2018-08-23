@@ -8,13 +8,25 @@ import risetek.jcli.utils.ParamSaver;
 public class Bootstrap {
 
 	public static void main(String[] args) {
-		System.out.println("hello risetek jcli");
-		new ParamSaver();
-		new Syscast();
+		// ensure init cli common object.
+		Cli_common.getInstance();
+		
+		loadCommand(ParamSaver.class);
+		loadCommand(Syscast.class);
+
 		try {
 			new CliSocketChannel().startServer();
 		} catch (IOException e) {
-			// TODO Auto-generated catch block
+			e.printStackTrace();
+		}
+	}
+	
+	private static void loadCommand(Class<?> applet) {
+		try {
+			Object app = applet.newInstance();
+			if(app instanceof HasRunningConf)
+				Cli_common.runningConfigList.add((HasRunningConf)app);
+		} catch (InstantiationException | IllegalAccessException e) {
 			e.printStackTrace();
 		}
 	}

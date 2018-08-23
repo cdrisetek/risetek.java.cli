@@ -1550,8 +1550,12 @@ public class JCli implements Runnable, ICli {
 	}
 	
 	
-	public void print(String format, Object ...args) throws IOException {
-		_print(PRINT_PLAIN, format, args);
+	public void print(String format, Object ...args) {
+		try {
+			_print(PRINT_PLAIN, format, args);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 
 	interface Print_callback {
@@ -1713,14 +1717,14 @@ public class JCli implements Runnable, ICli {
 	}
 	private Mode_change_callback mode_change_callback = null;
 	public cliMode cli_set_configmode(cliMode mode, String config_desc, Mode_change_callback callback) {
-		cliMode old = mode;
+		cliMode old = this.mode;
 
 		if( mode == null )
 			return old;
 
 	    this.mode = mode;
 
-	    if (mode != old)
+	    if (!mode.equals(old))
 	    {
 	        if(mode == Cli_common.MODE_EXEC)
 	        {

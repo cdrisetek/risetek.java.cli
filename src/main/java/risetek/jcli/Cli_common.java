@@ -17,6 +17,8 @@ public class Cli_common extends Thread implements ICli {
 	public static String hostname = null;
 	public static String enable_password = null;
 
+	public static List<HasRunningConf> runningConfigList = new Vector<>();
+	
 	static class _LogEntity {
 		int level;
 		String message;
@@ -99,12 +101,18 @@ public class Cli_common extends Thread implements ICli {
 	public static Cli_command show_cli;
 	public static Cli_command debug_cli;
 	public static Cli_command no_debug_cli;
+	public static Cli_command service_cli;
+	public static Cli_command no_service_cli;
 
 	public static Cli_common getInstance() {
 		if (instance == null) {
 			instance = new Cli_common();
 			instance.start();
-
+			
+			service_cli = Cli_command.cli_register_command(null, "service", null, PRIVILEGE_UNPRIVILEGED, MODE_CONFIG,
+					"service");
+			no_service_cli = Cli_command.cli_register_no_command("service", null, PRIVILEGE_PRIVILEGED, MODE_CONFIG, "negtive service");
+			
 			show_cli = Cli_command.cli_register_command(null, "show", null, PRIVILEGE_UNPRIVILEGED, MODE_EXEC,
 					"show information");
 			debug_cli = Cli_command.cli_register_command(null, "debug", null, PRIVILEGE_PRIVILEGED, MODE_EXEC,
@@ -123,16 +131,28 @@ public class Cli_common extends Thread implements ICli {
 			Cli_command.cli_register_command(null, "exit", cli_int_exit_conf, PRIVILEGE_PRIVILEGED, MODE_CONFIG,
 					"Exit from configure mode");
 			
-			Cli_command temp = Cli_command.cli_register_command(null, "terminal", null,  PRIVILEGE_PRIVILEGED, Cli_common.MODE_EXEC, "Set terminal line parameters");
-			Cli_command.cli_register_command(temp, "monitor", cmd_terminal_monitor, PRIVILEGE_PRIVILEGED, Cli_common.MODE_EXEC, "Copy debug output to the current terminal line");
+			Cli_command temp = Cli_command.cli_register_command(null, "terminal", null,  PRIVILEGE_PRIVILEGED, MODE_EXEC, "Set terminal line parameters");
+			Cli_command.cli_register_command(temp, "monitor", cmd_terminal_monitor, PRIVILEGE_PRIVILEGED, MODE_EXEC, "Copy debug output to the current terminal line");
 
-			temp = Cli_command.cli_register_command(temp, "no", null, PRIVILEGE_PRIVILEGED, Cli_common.MODE_EXEC, " Negate a command or set its defaults");
-			Cli_command.cli_register_command(temp, "monitor", cmd_no_terminal_monitor, PRIVILEGE_PRIVILEGED, Cli_common.MODE_EXEC, "Copy debug output to the current terminal line");
+			temp = Cli_command.cli_register_command(temp, "no", null, PRIVILEGE_PRIVILEGED, MODE_EXEC, " Negate a command or set its defaults");
+			Cli_command.cli_register_command(temp, "monitor", cmd_no_terminal_monitor, PRIVILEGE_PRIVILEGED, MODE_EXEC, "Copy debug output to the current terminal line");
 			
+
+			temp = Cli_command.cli_register_command(null, "configure", null, PRIVILEGE_PRIVILEGED, MODE_EXEC, "Enter configuration mode");
+			Cli_command.cli_register_command(temp, "terminal", cmd_configure_terminal, PRIVILEGE_PRIVILEGED, MODE_EXEC, "Configure from the terminal");
+		
 		}
 		return instance;
 	}
 
+	static private CliCallback cmd_configure_terminal = new CliCallback() {
+
+		@Override
+		public cliState call(JCli cli, String command, List<String> words, int start, int argc) throws IOException {
+			cli.cli_set_configmode(MODE_CONFIG, null, null);
+			return null;
+		}
+	};
 	static private CliCallback cmd_terminal_monitor = new CliCallback() {
 
 		@Override

@@ -3,7 +3,7 @@ package risetek.jcli;
 import risetek.jcli.Cli_common.cliMode;
 import risetek.jcli.JCli.Wilds_callback;
 
-public class Cli_command {
+public class Cli_command implements ICli {
 	Cli_command children;
 	Cli_command next;
 	int push_command;
@@ -66,4 +66,40 @@ public class Cli_command {
 		    return c;
 		}
 	
+	// TODO: FIXME: 在cli使用完成后，没有释放这个结构。
+	static class lazy_no_cli {
+		Cli_command command;
+		cliMode	mode;
+		int		privilege;
+		lazy_no_cli next;
+	};
+	
+	private static lazy_no_cli no_cli_header = null; //new lazy_no_cli();
+
+	// 我们能够够实现lazy构造？
+	private static Cli_command no_cli(cliMode mode, int privilege)
+	{
+		lazy_no_cli lazy_p = no_cli_header;
+		while( lazy_p != null )
+		{
+			if( lazy_p.mode == mode && lazy_p.privilege == privilege)
+				return lazy_p.command;
+			lazy_p = lazy_p.next;
+		}
+		// 没有找到，立即生成一个。
+		// diag_printf("new lazy mode: %d\r\n", mode);
+		lazy_p = new lazy_no_cli();
+		lazy_p.command = cli_register_command(null, "no", null,  PRIVILEGE_PRIVILEGED, mode, "Negate a command or set its defaults");
+		lazy_p.mode = mode;
+		lazy_p.privilege = privilege;
+		lazy_p.next = no_cli_header;
+		no_cli_header = lazy_p;
+		return no_cli_header.command;
+	}
+	
+	
+	public static Cli_command cli_register_no_command(String command,
+			CliCallback callback, int privilege, cliMode mode, String help) {
+		return cli_register_command(no_cli(mode, privilege), command, callback,  privilege, mode, help);
+	}
 }
