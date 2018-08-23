@@ -890,7 +890,7 @@ public class JCli implements Runnable, ICli {
 	                allowed++;
 	        }
 
-			if (allowed==0 && common.enable_callback!=null)
+			if (allowed==0 && Cli_common.enable_callback!=null)
 	        {
 	            // check callback
 				if (Cli_common.enable_callback.call(cmd))
@@ -911,6 +911,7 @@ public class JCli implements Runnable, ICli {
 	    else
 	    {
 	        if (location == 0) continue;
+	        // TODO: cmd is byte array!!!!
 	        if (cmd[location - 1] != '?' && !cmd.equals("history"))
 	            cli_add_history(cmd);
 
@@ -981,7 +982,6 @@ public class JCli implements Runnable, ICli {
 	}
 	
 	private void close_monitor() {
-		System.out.println("TODO: close_monitor");
 		common.RemoveCli(this);
 	}
 	
@@ -996,7 +996,7 @@ public class JCli implements Runnable, ICli {
 		return c == (byte)32; // ' '
 	}
 
-	List<String> cli_parse_line(byte[] line)
+	private List<String> cli_parse_line(byte[] line)
 	{
 		List<String> words = new Vector<>();
 		int index = 0;
@@ -1062,7 +1062,6 @@ public class JCli implements Runnable, ICli {
 	        }
 	    }
 
-	    //return nwords;
 	    return words;
 	}	
 	private cliState cli_run_command(byte cmd[]) throws IOException {
@@ -1125,7 +1124,6 @@ public class JCli implements Runnable, ICli {
 		void print(String command) throws IOException;
 	}
 	
-	// enum Privilege {}
 	interface Filter {
 	    cliState filter(JCli cli, String string, Object data);
 	}
@@ -1385,11 +1383,6 @@ public class JCli implements Runnable, ICli {
 		return false;
 	}
 	private cliState cli_add_history(byte cmd[]) {
-/*
-		if(history[in_history] == null) {
-			history[in_history] = cmd.clone();
-		}
-*/
 	    int i;
 	    for (i = 0; i < MAX_HISTORY; i++)
 	    {
@@ -1554,12 +1547,10 @@ public class JCli implements Runnable, ICli {
 			}
 			len ++;
 		}
-		//return len;
 	}
 	
 	
 	public void print(String format, Object ...args) throws IOException {
-		//write(String.format(format+"\r\n", args));
 		_print(PRINT_PLAIN, format, args);
 	}
 
@@ -1696,7 +1687,7 @@ public class JCli implements Runnable, ICli {
 			return c.unique_len[privilege][0];
 	}
 
-	ByteBuffer buf; // = ByteBuffer.allocate(1024);
+	private ByteBuffer buf; // = ByteBuffer.allocate(1024);
 	private int buflen = -1;
 	private byte cli_read() throws IOException {
 		byte b = buf.get();

@@ -170,7 +170,7 @@ public class Cli_common extends Thread implements ICli {
 		    for (int i = 0; i < JCli.MAX_HISTORY; i++)
 		    {
 		        if (cli.history[i] != null)
-		            cli.error("%3d. %s", i, cli.history[i]);
+		            cli.error("%3d. %s", i, new String(cli.history[i]));
 		    }
 
 			return cliState.CLI_OK;

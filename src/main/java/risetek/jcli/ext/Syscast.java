@@ -9,14 +9,15 @@ import java.util.List;
 import risetek.jcli.CliCallback;
 import risetek.jcli.Cli_command;
 import risetek.jcli.Cli_common;
+import risetek.jcli.ICli;
 import risetek.jcli.JCli;
 import risetek.jcli.JCli.cliState;
 
-public class Syscast extends Thread {
+public class Syscast extends Thread implements ICli {
 	public Syscast() {
-		Cli_command.cli_register_command(Cli_common.debug_cli, "syscast", cmd_syscast_debug,  Cli_common.PRIVILEGE_PRIVILEGED, Cli_common.MODE_EXEC, "debug syscast");
-		Cli_command.cli_register_command(Cli_common.no_debug_cli, "syscast", cmd_syscast_debug_no,  Cli_common.PRIVILEGE_PRIVILEGED, Cli_common.MODE_EXEC, "debug syscast");
-		Cli_command.cli_register_command(Cli_common.show_cli, "syscast", cmd_syscast_show,  Cli_common.PRIVILEGE_PRIVILEGED, Cli_common.MODE_EXEC, "debug syscast");
+		Cli_command.cli_register_command(Cli_common.debug_cli, "syscast", cmd_syscast_debug,  PRIVILEGE_PRIVILEGED, Cli_common.MODE_EXEC, "debug syscast");
+		Cli_command.cli_register_command(Cli_common.no_debug_cli, "syscast", cmd_syscast_debug_no,  PRIVILEGE_PRIVILEGED, Cli_common.MODE_EXEC, "debug syscast");
+		Cli_command.cli_register_command(Cli_common.show_cli, "syscast", cmd_syscast_show,  PRIVILEGE_PRIVILEGED, Cli_common.MODE_EXEC, "debug syscast");
 	
 		start();
 	}
@@ -44,7 +45,8 @@ public class Syscast extends Thread {
 
 		@Override
 		public cliState call(JCli cli, String command, List<String> words, int start, int argc) throws IOException {
-			Cli_common.Debug(1, "debug syscast is supported.");
+			if(debug)
+				Cli_common.Debug(1, "debug syscast is supported.\r\n");
 			return cliState.CLI_OK;
 		}
 	};
@@ -73,8 +75,10 @@ public class Syscast extends Thread {
 			dgSocket.receive(packet);
 
 			String str = new String(packet.getData(), 0, packet.getLength());
-			Cli_common.Debug(1, "Packet from: " + packet.getAddress() + " Size:" + str.length());
-			Cli_common.Debug(1, str);
+			if(debug) {
+				Cli_common.Debug(1, "Packet from: " + packet.getAddress() + " Size:" + str.length());
+				Cli_common.Debug(1, str);
+			}
 
 			try {
 				parser.parser(str);
