@@ -44,7 +44,7 @@ public class Syscast extends Thread {
 
 		@Override
 		public cliState call(JCli cli, String command, List<String> words, int start, int argc) throws IOException {
-			cli.print("debug syscast is supported.");
+			Cli_common.Debug(1, "debug syscast is supported.");
 			return cliState.CLI_OK;
 		}
 	};

@@ -25,12 +25,14 @@ public class JCli implements Runnable, ICli {
 			(byte)0xFF,(byte)0xFD,(byte)0x03,(byte)0xFF,(byte)0xFD,(byte)0x01};
 
 
-	
+	private Cli_common common = Cli_common.getInstance();
+
 	public JCli(SocketChannel socket) {
 		_socket = socket;
 		
 		cli_set_privilege(PRIVILEGE_UNPRIVILEGED);
 		cli_set_hostname("cli");
+		common.AddCli(this);
 	}
 	private boolean quit = false;
 	private SelectionKey selectKey;
@@ -113,6 +115,17 @@ public class JCli implements Runnable, ICli {
 			
 		}
 		
+	}
+
+	public boolean debug_monitor = false;
+	public void DebugOutput(String message) {
+		if(!debug_monitor)
+			return;
+		try {
+			write(message);
+		} catch (IOException e) {
+			e.printStackTrace();
+		}
 	}
 	
 	enum selectReason {READ, TIMER}
@@ -965,6 +978,7 @@ public class JCli implements Runnable, ICli {
 	
 	private void close_monitor() {
 		System.out.println("TODO: close_monitor");
+		common.RemoveCli(this);
 	}
 	
 	private byte CTRL(char c) {
@@ -1117,8 +1131,6 @@ public class JCli implements Runnable, ICli {
 	    Object data;
 	    cli_filter next;
 	}
-	
-	private Cli_common common = Cli_common.getInstance();
 	
 	public int privilege = PRIVILEGE_PRIVILEGED;
 	private cliState cli_find_command(cliMode mode, Cli_command commands, CliCallback havecallback,

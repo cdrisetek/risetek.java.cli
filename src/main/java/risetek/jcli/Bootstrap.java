@@ -3,7 +3,6 @@ package risetek.jcli;
 import java.io.IOException;
 
 import risetek.jcli.ext.Syscast;
-import risetek.jcli.utils.Monitor;
 import risetek.jcli.utils.ParamSaver;
 
 public class Bootstrap {
@@ -12,7 +11,6 @@ public class Bootstrap {
 		System.out.println("hello risetek jcli");
 		new ParamSaver();
 		new Syscast();
-		new Monitor();
 		try {
 			new CliSocketChannel().startServer();
 		} catch (IOException e) {
