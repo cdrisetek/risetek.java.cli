@@ -61,6 +61,7 @@ public class Cli_command implements ICli {
 	    	if(r != null)
 			{
 				for (p = r; p!=null && p.next!=null; p = p.next);
+				// System.out.println("Regist: from parent:" + p.command + " next:" + c.command);
 				if (p!=null) p.next = c;
 			}
 		    return c;

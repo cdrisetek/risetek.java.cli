@@ -1377,6 +1377,7 @@ public class JCli implements Runnable, ICli {
 	    return cliState.CLI_ERROR_ARG;
 	}
 	private boolean strncasecmp(String a, String b, int len) {
+		// System.out.println("strncasecmp: [" + a + "] with: [" + b + "] len:" + len);
 		return !(a.regionMatches(true, 0, b, 0, len));
 	}
 	private boolean link_hide_command(hide_command hideCommand, Cli_command command) {
@@ -1438,18 +1439,39 @@ public class JCli implements Runnable, ICli {
 
 		    //num_words = cli_parse_line(command, words, sizeof(words)/sizeof(words[0]));
 		    List<String> words = cli_parse_line(command);
+		    //num_words = words.size();
+		    
 		    /*
 		    if (!command[0] || command[strlen(command)-1] == ' ')
 		        num_words++;
 
+			
 		    if (!num_words)
 		            return 0;
 */
+		    if(command[0] == 0)
+//		    	num_words++;
+		    	words.add(null);
+		    
+		    for(int in=0; in < command.length; in++) {
+		    	if(command[in]==' ' && command[in+1]==0) {
+			    	// System.out.println("DebugOnly: end with space");
+			    	words.add("");
+			    	//num_words++;
+		    	}
+		    }
+		    
+		    if(words.size() == 0)
+		    	return completions;
+
 		    for (i = 0; i < words.size(); i++)
 		    {
-		        if (words.get(i)!=null && words.get(i).charAt(0) == '|')
+		    	String word = words.get(i);
+		    	
+		        if (word!=null && word.length() > 0 && word.charAt(0) == '|')
 		            filter = i;
 		    }
+
 /*
 		    if (filter!=0) // complete filters
 		    {
@@ -1511,6 +1533,7 @@ public class JCli implements Runnable, ICli {
 				if( c.children==null && c.callback==null) continue;
 				
 		        //completions[k++] = c.command;
+				k++;
 		        completions.add(c.command);
 		    }
 
