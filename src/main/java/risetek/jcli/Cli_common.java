@@ -17,6 +17,21 @@ public class Cli_common extends Thread implements ICli {
 	public static String hostname = null;
 	public static String enable_password = null;
 
+	public static void loadCommand(Class<?>... clet) {
+		// ensure init cli common object.
+		Cli_common.getInstance();
+
+		for (Class<?> clazz : clet)
+			try {
+				Object instance = clazz.newInstance();
+				if (instance instanceof HasRunningConf)
+					Cli_common.runningConfigList.add((HasRunningConf) instance);
+			} catch (InstantiationException | IllegalAccessException e) {
+				e.printStackTrace();
+			}
+	}
+	
+	
 	public static List<HasRunningConf> runningConfigList = new Vector<>();
 	
 	static class _LogEntity {

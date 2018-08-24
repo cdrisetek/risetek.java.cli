@@ -7,12 +7,7 @@ import risetek.jcli.utils.ParamSaver;
 public class Bootstrap {
 
 	public static void main(String[] args) {
-		loadCommand(ParamSaver.class);
-		loadCommand(Syscast.class);
-
-		loadCommand(LogMonitor.class);
-
-		CliSocketChannel.launch(2223);
+		init();
 
 		try {
 			Thread.currentThread().join();
@@ -20,18 +15,12 @@ public class Bootstrap {
 			e.printStackTrace();
 		}
 	}
+	
+	public static void init() {
+		Cli_common.loadCommand(ParamSaver.class, Syscast.class);
 
-	private static void loadCommand(Class<?>... clet) {
-		// ensure init cli common object.
-		Cli_common.getInstance();
+		Cli_common.loadCommand(LogMonitor.class);
 
-		for (Class<?> clazz : clet)
-			try {
-				Object instance = clazz.newInstance();
-				if (instance instanceof HasRunningConf)
-					Cli_common.runningConfigList.add((HasRunningConf) instance);
-			} catch (InstantiationException | IllegalAccessException e) {
-				e.printStackTrace();
-			}
+		CliSocketChannel.launch(2223);
 	}
 }
