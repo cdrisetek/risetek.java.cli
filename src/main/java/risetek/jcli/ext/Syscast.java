@@ -16,6 +16,7 @@ import risetek.jcli.JCli.cliState;
 
 public class Syscast extends Thread implements ICli, HasRunningConf {
 	public Syscast() {
+		super("syscast");
 		Cli_command.cli_register_command(Cli_common.debug_cli, "syscast", cmd_syscast_debug,  PRIVILEGE_PRIVILEGED, Cli_common.MODE_EXEC, "debug syscast");
 		Cli_command.cli_register_command(Cli_common.no_debug_cli, "syscast", cmd_syscast_debug_no,  PRIVILEGE_PRIVILEGED, Cli_common.MODE_EXEC, "debug syscast");
 		Cli_command.cli_register_command(Cli_common.show_cli, "syscast", cmd_syscast_show,  PRIVILEGE_PRIVILEGED, Cli_common.MODE_EXEC, "debug syscast");

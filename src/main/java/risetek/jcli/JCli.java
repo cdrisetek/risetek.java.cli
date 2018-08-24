@@ -17,7 +17,7 @@ import risetek.jcli.Cli_common.cliMode;
 import risetek.jcli.Cli_common.unp;
 import risetek.jcli.JCli.confirmcallback.confirmcontext;
 
-public class JCli implements Runnable, ICli {
+public class JCli extends Thread implements ICli {
 	SocketChannel _socket;
 	String ENABLE_KEY = "enable";
 	
@@ -27,7 +27,9 @@ public class JCli implements Runnable, ICli {
 
 	private Cli_common common = Cli_common.getInstance();
 
+	private static int instanceIndex = 0;
 	public JCli(SocketChannel socket) {
+		super("jcli" + instanceIndex);
 		_socket = socket;
 		
 		cli_set_privilege(PRIVILEGE_UNPRIVILEGED);

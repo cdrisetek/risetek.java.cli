@@ -37,7 +37,7 @@ public class CliSocketChannel {
 					ServerSocketChannel ssc = (ServerSocketChannel) key.channel();
 					socket = (SocketChannel) ssc.accept();
 					socket.configureBlocking(false);
-					new JCli(socket).run();
+					new JCli(socket).start();
 				}
 			}
 		}

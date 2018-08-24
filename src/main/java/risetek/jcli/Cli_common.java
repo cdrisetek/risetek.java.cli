@@ -32,28 +32,29 @@ public class Cli_common extends Thread implements ICli {
 		_LogEntity entity = new _LogEntity();
 		entity.level = level;
 		entity.message = String.format(format, args);
-		logQueue.add(entity);
 		synchronized (logQueue) {
+			logQueue.add(entity);
 			logQueue.notify();
 		}
 	}
 
 	@Override
 	public void run() {
+		_LogEntity entity;
 		while (true) {
-			if (logQueue.size() == 0) {
-				synchronized (logQueue) {
+			synchronized (logQueue) {
+				if (logQueue.size() > 0) {
+					entity = logQueue.pop();
+					for(JCli cli:cliInstances) {
+						cli.DebugOutput(entity.message);
+					}
+				} else {
 					try {
 						logQueue.wait();
 					} catch (InterruptedException e) {
 						e.printStackTrace();
 					}
 				}
-			}
-
-			_LogEntity entity = logQueue.pop();
-			for(JCli cli:cliInstances) {
-				cli.DebugOutput(entity.message);
 			}
 		}
 	}
@@ -96,6 +97,7 @@ public class Cli_common extends Thread implements ICli {
 	cli_filter filters;
 
 	private Cli_common() {
+		super("cli common");
 	}
 
 	public static Cli_command show_cli;

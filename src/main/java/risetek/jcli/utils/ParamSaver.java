@@ -26,24 +26,7 @@ public class ParamSaver implements ICli {
 			cli.print("#Begin construct configure");
 			for(HasRunningConf processer:Cli_common.runningConfigList)
 				processer.processConfig(cli);
-				
-/*
-			int looper;
-			param_commandtab_entry_t *t;
 
-			while(!cyg_mutex_lock(&mutex)) {diag_printf("LOCK %s %d\r\n", __FILE__, __LINE__);};
-
-			for( looper = PARAM_PROCESS_LEVEL_FIRST; looper <= PARAM_PROCESS_LEVEL_LAST; looper++)
-			{
-			    for (t = &__PARAM_COMMANDS_TAB__[0]; t != &__PARAM_COMMANDS_TAB_END__; t++)
-			    {
-			        if( t->level == looper)
-			        	t->param_process(cli);
-			    }
-			}
-
-			cyg_mutex_unlock(&mutex);
-*/
 			return cliState.CLI_OK;
 		}
 	};
@@ -59,19 +42,9 @@ public class ParamSaver implements ICli {
 
 			cli.cli_print_callback(buffer_configure);
 		    cli.print("\n#Configure:");
+			for(HasRunningConf processer:Cli_common.runningConfigList)
+				processer.processConfig(cli);
 
-			/*
-			param_commandtab_entry_t *t;
-			int looper;
-			for( looper = PARAM_PROCESS_LEVEL_FIRST; looper <= PARAM_PROCESS_LEVEL_LAST; looper++)
-			{
-			    for (t = &__PARAM_COMMANDS_TAB__[0]; t != &__PARAM_COMMANDS_TAB_END__; t++)
-			    {
-			        if( t->level == looper)
-			        	t->param_process(cli);
-			    }
-			}
-			*/
 			cli.cli_print_callback(null);
 
 			if( confiurebuffer != null ){
@@ -91,11 +64,6 @@ public class ParamSaver implements ICli {
 		
 	};
 
-/*
-static char *confiurebuffer = NULL;
-static int confiurebuffersize = 0;
-#define BUFFERCELLSIZE 128
-*/
 	IHelper_print buffer_configure = new IHelper_print() {
 
 		@Override
