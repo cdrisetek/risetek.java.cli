@@ -26,7 +26,7 @@ public class Cli_common extends Thread implements ICli {
 
 	public static LinkedList<_LogEntity> logQueue = new LinkedList<>();
 
-	public static void Debug(int level, String format, Object... args) {
+	public static void monitor(int level, String format, Object... args) {
 		if (logQueue.size() > 1000)
 			return;
 		_LogEntity entity = new _LogEntity();

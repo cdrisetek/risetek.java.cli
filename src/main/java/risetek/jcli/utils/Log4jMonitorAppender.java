@@ -33,7 +33,7 @@ public class Log4jMonitorAppender implements Appender {
 		if(!(o instanceof String))
 			return;
 
-		Cli_common.Debug(1, (String)o);
+		Cli_common.monitor(1, (String)o);
 	}
 
 	@Override

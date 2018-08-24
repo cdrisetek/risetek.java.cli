@@ -97,8 +97,8 @@ public class Syscast extends Thread implements ICli, HasRunningConf {
 
 			String str = new String(packet.getData(), 0, packet.getLength());
 			if(debug) {
-				Cli_common.Debug(1, "Packet from: " + packet.getAddress() + " Size:" + str.length());
-				Cli_common.Debug(1, str);
+				Cli_common.monitor(1, "Packet from: " + packet.getAddress() + " Size:" + str.length());
+				Cli_common.monitor(1, str);
 			}
 
 			try {

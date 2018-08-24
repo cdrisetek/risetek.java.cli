@@ -9,37 +9,50 @@ import java.nio.channels.SocketChannel;
 import java.util.Iterator;
 import java.util.Set;
 
-public class CliSocketChannel {
+public class CliSocketChannel extends Thread {
+	private CliSocketChannel(int _port) {
+		super("socket acceptor");
+		port = _port;
+		setDaemon(true);
+		start();
+	}
 
-	public int port = 2223;
+	private int port;
+	public static void launch(int port) {
+		new CliSocketChannel(port);
+	}
+	
+	@Override
+	public void run() {
+		try {
+			Selector sel = Selector.open();
+			ServerSocketChannel server = ServerSocketChannel.open();
+			server.configureBlocking(false);
+			InetSocketAddress isa = new InetSocketAddress("localhost", port);
+			server.socket().bind(isa);
 
-	// create server channel
-	public void startServer() throws IOException {
-		Selector sel = Selector.open();
-		ServerSocketChannel server = ServerSocketChannel.open();
-		server.configureBlocking(false);
-		InetSocketAddress isa = new InetSocketAddress("localhost", port);
-		server.socket().bind(isa);
-		System.out.println("Abt to block on select()");
-		SelectionKey acceptKey = server.register(sel, SelectionKey.OP_ACCEPT);
-		SocketChannel socket;
-		while (acceptKey.selector().select() > 0) {
+			SelectionKey acceptKey = server.register(sel, SelectionKey.OP_ACCEPT);
+			SocketChannel socket;
+			while (acceptKey.selector().select() > 0) {
 
-			Set<SelectionKey> readyKeys = sel.selectedKeys();
-			Iterator<SelectionKey> it = readyKeys.iterator();
+				Set<SelectionKey> readyKeys = sel.selectedKeys();
+				Iterator<SelectionKey> it = readyKeys.iterator();
 
-			while (it.hasNext()) {
-				SelectionKey key = (SelectionKey) it.next();
-				it.remove();
+				while (it.hasNext()) {
+					SelectionKey key = (SelectionKey) it.next();
+					it.remove();
 
-				if (key.isAcceptable()) {
-					System.out.println("Key is Acceptable");
-					ServerSocketChannel ssc = (ServerSocketChannel) key.channel();
-					socket = (SocketChannel) ssc.accept();
-					socket.configureBlocking(false);
-					new JCli(socket).start();
+					if (key.isAcceptable()) {
+						ServerSocketChannel ssc = (ServerSocketChannel) key.channel();
+						socket = (SocketChannel) ssc.accept();
+						socket.configureBlocking(false);
+						new JCli(socket).start();
+					}
 				}
 			}
+		} catch (IOException e) {
+			e.printStackTrace();
 		}
-	}
+	}	
+
 }

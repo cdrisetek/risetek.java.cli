@@ -36,7 +36,7 @@ public class XMLParser {
 			NamedNodeMap map = node.getAttributes();
 			for(int n=0;n<map.getLength();n++) {
 				Node attr = map.item(n);
-				Cli_common.Debug(1, attr.getNodeName() + " value is: " + attr.getNodeValue());
+				Cli_common.monitor(1, attr.getNodeName() + " value is: " + attr.getNodeValue());
 			}
 		}
     }
